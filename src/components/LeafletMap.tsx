@@ -3,6 +3,7 @@
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import type { Landmark } from '@/lib/landmarks'
 
 // Fix default marker icons broken by webpack
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
@@ -11,13 +12,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: '/leaflet-icons/marker-icon.png',
   shadowUrl: '/leaflet-icons/marker-shadow.png',
 })
-
-interface Landmark {
-  name: string
-  lat: number
-  lng: number
-  category: string
-}
 
 interface LeafletMapProps {
   landmarks: Landmark[]
