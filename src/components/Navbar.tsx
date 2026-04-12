@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, MapPin } from 'lucide-react'
+import { Menu, X, MapPin, Coffee } from 'lucide-react'
 
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/explore', label: 'Explore' },
   { href: '/map', label: 'Map' },
-  { href: '/concierge', label: 'AI Concierge' },
-  { href: '/payment', label: 'Plans' },
+  { href: '/concierge', label: 'AI Guide' },
+  { href: '/about', label: 'About' },
 ]
 
 export default function Navbar() {
@@ -55,12 +55,14 @@ export default function Navbar() {
 
             {/* CTA */}
             <div className="hidden md:flex items-center gap-3">
-              <Link
-                href="/activate"
-                className="px-4 py-2 text-sm font-medium text-yellow-400 border border-yellow-400/40 rounded-lg glass-gold hover:border-yellow-400/80 transition-all duration-200"
+              <a
+                href="https://www.buymeacoffee.com/mdouaour"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[#FFDD00] text-black rounded-lg hover:bg-[#FFE740] transition-all duration-200"
               >
-                Activate License
-              </Link>
+                <Coffee className="w-3.5 h-3.5" /> Buy me a coffee
+              </a>
             </div>
 
             {/* Mobile toggle */}
@@ -96,13 +98,15 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              <Link
-                href="/activate"
-                className="mt-2 py-3 text-center text-sm font-medium text-yellow-400 border border-yellow-400/40 rounded-lg glass-gold"
+              <a
+                href="https://www.buymeacoffee.com/mdouaour"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 py-3 text-center text-sm font-medium bg-[#FFDD00] text-black rounded-lg"
                 onClick={() => setMobileOpen(false)}
               >
-                Activate License
-              </Link>
+                ☕ Buy Me a Coffee
+              </a>
             </div>
           </motion.div>
         )}

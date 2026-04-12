@@ -2,7 +2,9 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowRight, MapPin, Star, Users, Landmark, ChevronRight, Sparkles, CreditCard, CheckCircle } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowRight, MapPin, Star, Users, Landmark, ChevronRight, Sparkles, Coffee, Heart, CheckCircle } from 'lucide-react'
+import { landmarks } from '@/lib/landmarks'
 
 const fadeUp = {
   initial: { opacity: 0, y: 30 },
@@ -10,46 +12,24 @@ const fadeUp = {
   transition: { duration: 0.6 },
 }
 
-const landmarks = [
-  {
-    name: 'Ain Larbi Hot Springs',
-    category: 'Nature',
-    color: 'bg-emerald-500/20 text-emerald-400',
-    desc: 'Natural thermal springs surrounded by lush greenery, known for their healing mineral waters.',
-    gradient: 'from-emerald-900 to-teal-900',
-  },
-  {
-    name: 'Hammam Debagh',
-    category: 'Historical',
-    color: 'bg-amber-500/20 text-amber-400',
-    desc: 'Ancient Roman thermal baths dating back over 2,000 years with natural hot spring pools.',
-    gradient: 'from-amber-900 to-orange-900',
-  },
-  {
-    name: 'Roman Theatre of Guelma',
-    category: 'Historical',
-    color: 'bg-purple-500/20 text-purple-400',
-    desc: 'A remarkably preserved 2nd-century Roman amphitheatre, still used for cultural performances.',
-    gradient: 'from-purple-900 to-indigo-900',
-  },
-]
+const featuredLandmarks = landmarks.slice(0, 3)
 
 const stats = [
-  { value: '100+', label: 'Landmarks', icon: Landmark },
-  { value: '5,000+', label: 'Travelers', icon: Users },
+  { value: `${landmarks.length}+`, label: 'Landmarks', icon: Landmark },
+  { value: 'Free', label: 'Forever', icon: Heart },
   { value: '4.9★', label: 'Rating', icon: Star },
 ]
 
 const steps = [
-  { step: '01', title: 'Activate License', desc: 'Purchase a plan and receive your activation key via email after CCP payment.' },
-  { step: '02', title: 'Explore Landmarks', desc: 'Browse 100+ curated landmarks with photos, history, and insider tips.' },
-  { step: '03', title: 'Plan Your Trip', desc: 'Use the AI concierge and interactive map to build your perfect Guelma itinerary.' },
+  { step: '01', title: 'Find Your Destination', desc: 'Search or browse 14+ curated landmarks — from Roman ruins to hidden natural springs.' },
+  { step: '02', title: 'Ask the AI Guide', desc: 'Get instant answers about opening hours, transport, local food, and insider tips.' },
+  { step: '03', title: 'Explore on the Map', desc: 'Use the interactive map to plan your route and navigate Guelma with confidence.' },
 ]
 
 const testimonials = [
-  { name: 'Amira Bensalem', role: 'Travel Blogger', text: 'GuelmaGuide transformed how I explore Algeria. The AI concierge answered every question I had!', rating: 5 },
-  { name: 'Karim Boudjemaa', role: 'History Enthusiast', text: 'The Roman Theatre section alone is worth the license. Incredible depth of historical information.', rating: 5 },
-  { name: 'Nadia Merabet', role: 'Local Guide', text: 'I recommend this to all my tour groups. The interactive map is superb.', rating: 5 },
+  { name: 'Amira Bensalem', role: 'Travel Blogger', text: 'GuelmaGuide is the only resource I could find that covers Guelma in this much depth. The AI guide answered every question!', rating: 5 },
+  { name: 'Karim Boudjemaa', role: 'History Enthusiast', text: 'The Roman Theatre section has incredible historical detail. Finally a guide that does justice to Calama\'s legacy.', rating: 5 },
+  { name: 'Nadia Merabet', role: 'Local Guide', text: 'I recommend this to all my tour groups. The interactive map and detailed pages are superb.', rating: 5 },
 ]
 
 export default function HomePage() {
@@ -57,7 +37,6 @@ export default function HomePage() {
     <div className="min-h-screen" style={{ background: '#0A0A0F' }}>
       {/* Hero */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-        {/* Background orbs */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-amber-500/8 rounded-full blur-3xl" />
@@ -67,7 +46,7 @@ export default function HomePage() {
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <motion.div {...fadeUp} className="inline-flex items-center gap-2 px-4 py-2 glass-gold rounded-full text-xs text-yellow-400 mb-6">
             <Sparkles className="w-3 h-3" />
-            AI-Powered Tourism Platform
+            Free City Guide · AI-Powered · No Login Needed
           </motion.div>
 
           <motion.h1
@@ -89,7 +68,7 @@ export default function HomePage() {
             className="text-lg text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed"
           >
             Explore ancient Roman ruins, natural thermal springs, and rich Algerian culture
-            with your personal AI travel concierge. Guelma awaits.
+            with your personal AI travel guide. Completely free, always.
           </motion.p>
 
           <motion.div
@@ -108,12 +87,11 @@ export default function HomePage() {
               href="/concierge"
               className="inline-flex items-center gap-2 px-8 py-4 glass border border-white/20 text-white font-medium rounded-xl hover:border-yellow-400/40 transition-all duration-200"
             >
-              Meet Your AI Guide <Sparkles className="w-4 h-4 text-yellow-400" />
+              Ask the AI Guide <Sparkles className="w-4 h-4 text-yellow-400" />
             </Link>
           </motion.div>
         </div>
 
-        {/* Scroll indicator */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -161,9 +139,9 @@ export default function HomePage() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {landmarks.map((lm, i) => (
+            {featuredLandmarks.map((lm, i) => (
               <motion.div
-                key={lm.name}
+                key={lm.slug}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -171,21 +149,39 @@ export default function HomePage() {
                 whileHover={{ scale: 1.02, y: -4 }}
                 className="glass rounded-2xl overflow-hidden group cursor-pointer"
               >
-                <div className={`h-48 bg-gradient-to-br ${lm.gradient} flex items-center justify-center`}>
-                  <MapPin className="w-12 h-12 text-white/30 group-hover:text-white/60 transition-colors" />
-                </div>
-                <div className="p-6">
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium mb-3 ${lm.color}`}>
-                    {lm.category}
-                  </span>
-                  <h3 className="font-bold text-lg mb-2 font-serif">{lm.name}</h3>
-                  <p className="text-white/50 text-sm leading-relaxed mb-4">{lm.desc}</p>
-                  <Link href="/explore" className="inline-flex items-center gap-1 text-yellow-400 text-sm hover:gap-2 transition-all">
-                    Learn More <ChevronRight className="w-4 h-4" />
-                  </Link>
-                </div>
+                <Link href={`/explore/${lm.slug}`} className="block">
+                  <div className={`h-48 bg-gradient-to-br ${lm.gradient} relative overflow-hidden`}>
+                    <Image
+                      src={lm.photo}
+                      alt={lm.name}
+                      fill
+                      className="object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-500"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  </div>
+                  <div className="p-6">
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium mb-3 ${lm.color}`}>
+                      {lm.category}
+                    </span>
+                    <h3 className="font-bold text-lg mb-2 font-serif group-hover:text-yellow-400 transition-colors">{lm.name}</h3>
+                    <p className="text-white/50 text-sm leading-relaxed mb-4 line-clamp-2">{lm.desc}</p>
+                    <span className="inline-flex items-center gap-1 text-yellow-400 text-sm">
+                      Learn More <ChevronRight className="w-4 h-4" />
+                    </span>
+                  </div>
+                </Link>
               </motion.div>
             ))}
+          </div>
+
+          <div className="text-center mt-8">
+            <Link
+              href="/explore"
+              className="inline-flex items-center gap-2 px-6 py-3 glass border border-white/20 text-white rounded-xl hover:border-yellow-400/40 transition-all text-sm"
+            >
+              View all {landmarks.length} landmarks <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       </section>
@@ -206,7 +202,7 @@ export default function HomePage() {
                 Your Personal<br /><span className="gold-gradient">AI Guide</span> to Guelma
               </h2>
               <p className="text-white/50 mb-6 leading-relaxed">
-                Ask anything about Guelma. Our AI concierge knows every landmark, local tip, opening hour, and hidden gem.
+                Ask anything about Guelma. Our AI guide knows every landmark, local tip, opening hour, and hidden gem.
               </p>
               <Link
                 href="/concierge"
@@ -270,7 +266,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pricing CTA */}
+      {/* Free forever + Buy Me a Coffee */}
       <section className="py-16 px-4">
         <div className="max-w-2xl mx-auto">
           <motion.div
@@ -279,25 +275,29 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="glass-gold rounded-3xl p-8 text-center glow-gold"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-500/20 rounded-full text-xs text-yellow-400 mb-4">
-              <CreditCard className="w-3 h-3" /> CCP Payment Available
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 rounded-full text-xs text-green-400 mb-4">
+              <CheckCircle className="w-3 h-3" /> 100% Free · No Account · No Ads
             </div>
-            <h2 className="text-3xl font-bold font-serif mb-2">Unlock Full Access</h2>
-            <div className="text-5xl font-bold font-serif gold-gradient my-4">3,500 DA</div>
-            <p className="text-white/50 mb-6">One-time payment · Lifetime access · Instant activation</p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
-              {['100+ Landmarks', 'AI Concierge', 'Interactive Map', 'Offline Access'].map((f) => (
+            <h2 className="text-3xl font-bold font-serif mb-2">Free, Always</h2>
+            <p className="text-white/50 mb-6 leading-relaxed max-w-sm mx-auto">
+              GuelmaGuide will always be free to use. If it helped you discover something beautiful,
+              buying me a coffee keeps the servers running.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-2">
+              {['Detailed landmark pages', 'AI travel guide', 'Interactive map', 'No signup needed'].map((f) => (
                 <div key={f} className="flex items-center gap-1 text-sm text-white/60">
                   <CheckCircle className="w-4 h-4 text-yellow-400" /> {f}
                 </div>
               ))}
             </div>
-            <Link
-              href="/payment"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-yellow-500 to-amber-500 text-black font-bold rounded-xl hover:from-yellow-400 hover:to-amber-400 transition-all text-lg"
+            <a
+              href="https://www.buymeacoffee.com/mdouaour"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-3 px-8 py-4 bg-[#FFDD00] text-black font-bold rounded-2xl hover:bg-[#FFE740] transition-all text-lg"
             >
-              Pay via CCP <ArrowRight className="w-5 h-5" />
-            </Link>
+              <Coffee className="w-5 h-5" /> Buy Me a Coffee ☕
+            </a>
           </motion.div>
         </div>
       </section>
