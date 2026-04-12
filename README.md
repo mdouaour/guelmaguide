@@ -6,7 +6,7 @@ AI-powered city guide for Guelma, Algeria — interactive map, AI concierge, and
 
 ## ⚡ One-click deploy (works from a phone)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmdouaour%2FGuelma.guide&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,RESEND_API_KEY,ADMIN_SECRET,NEXT_PUBLIC_APP_URL&envDescription=See%20.env.example%20for%20where%20to%20find%20each%20value&envLink=https%3A%2F%2Fgithub.com%2Fmdouaour%2FGuelma.guide%2Fblob%2Fmain%2F.env.example&project-name=guelma-guide&repository-name=Guelma.guide)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmdouaour%2Fguelmaguide&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,RESEND_API_KEY,ADMIN_SECRET,NEXT_PUBLIC_APP_URL&envDescription=See%20.env.example%20for%20where%20to%20find%20each%20value&envLink=https%3A%2F%2Fgithub.com%2Fmdouaour%2Fguelmaguide%2Fblob%2Fmain%2F.env.example&project-name=guelma-guide&repository-name=guelmaguide)
 
 Tap the button → sign in to Vercel → fill in the 6 env vars (see table below) → **Deploy**.  
 No terminal required.
