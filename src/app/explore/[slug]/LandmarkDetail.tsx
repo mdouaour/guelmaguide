@@ -187,7 +187,7 @@ export default function LandmarkDetail({ landmark: lm, nearby }: Props) {
             {/* Ask AI */}
             <div className="glass rounded-2xl p-6">
               <h3 className="font-semibold mb-2 text-sm">Have questions?</h3>
-              <p className="text-white/50 text-xs mb-3">Ask our AI concierge anything about {lm.name}.</p>
+              <p className="text-white/50 text-xs mb-3">Ask our AI guide anything about {lm.name}.</p>
               <Link
                 href={`/concierge?q=${encodeURIComponent(lm.name)}`}
                 className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 glass border border-yellow-400/30 text-yellow-400 font-medium rounded-xl text-sm hover:border-yellow-400/60 transition-all"

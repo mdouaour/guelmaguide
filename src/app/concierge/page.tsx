@@ -212,18 +212,24 @@ function ConciergeContent() {
                   </div>
                 )}
                 <div
-                  className={`max-w-md px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-md px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-gradient-to-br from-yellow-500 to-amber-500 text-black rounded-br-sm font-medium'
                       : 'glass-gold text-white/85 rounded-bl-sm'
                   }`}
-                  dangerouslySetInnerHTML={msg.role === 'ai' ? {
-                    __html: msg.text
-                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                      .replace(/\n/g, '<br/>')
-                  } : undefined}
                 >
-                  {msg.role === 'user' ? msg.text : undefined}
+                  {msg.role === 'ai'
+                    ? msg.text.split(/(\*\*[^*]+\*\*)/).map((part, idx) =>
+                        part.startsWith('**') && part.endsWith('**')
+                          ? <strong key={idx}>{part.slice(2, -2)}</strong>
+                          : part.split('\n').map((line, li, arr) => (
+                              <span key={li}>
+                                {line}
+                                {li < arr.length - 1 && <br />}
+                              </span>
+                            ))
+                      )
+                    : msg.text}
                 </div>
               </motion.div>
             ))}
