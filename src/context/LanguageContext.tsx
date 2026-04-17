@@ -17,12 +17,18 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === 'en' || stored === 'ar') {
-      setLang(stored)
-      return
-    }
+    const isValidStored = stored === 'en' || stored === 'ar'
+    const isArabicBrowser = isArabicLanguage(navigator.language)
+    const detected: Language = isValidStored ? stored : isArabicBrowser ? 'ar' : 'en'
 
-    setLang(isArabicLanguage(navigator.language) ? 'ar' : 'en')
+    if (detected === 'en') return
+
+    // Defer language switch to the next tick so the first client render stays aligned with SSR defaults.
+    const timeoutId = window.setTimeout(() => {
+      setLang(detected)
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [])
 
   useEffect(() => {

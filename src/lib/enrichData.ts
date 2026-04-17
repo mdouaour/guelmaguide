@@ -4,6 +4,24 @@ import type { Landmark } from '@/lib/landmarks'
 const WIKIPEDIA_ENDPOINT = 'https://en.wikipedia.org/api/rest_v1/page/summary'
 const WIKIMEDIA_ENDPOINT = 'https://commons.wikimedia.org/w/api.php'
 
+let landmarksCache: Landmark[] | null = null
+let activitiesCache: Activity[] | null = null
+let landmarksPending: Promise<Landmark[]> | null = null
+let activitiesPending: Promise<Activity[]> | null = null
+
+interface WikipediaSummaryResponse {
+  extract?: string
+}
+
+interface WikimediaResponse {
+  query?: {
+    pages?: Record<string, { thumbnail?: { source?: string } }>
+  }
+}
+
+/**
+ * Normalize text spacing and keep only the first two sentences for concise previews.
+ */
 function compactSummary(text: string): string {
   const normalized = text.replace(/\s+/g, ' ').trim()
   const sentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean)
@@ -14,11 +32,11 @@ async function fetchWikipediaSummary(title: string): Promise<string | null> {
   try {
     const response = await fetch(`${WIKIPEDIA_ENDPOINT}/${encodeURIComponent(title)}`, {
       headers: { Accept: 'application/json' },
-      cache: 'no-store',
+      cache: 'force-cache',
     })
 
     if (!response.ok) return null
-    const data = (await response.json()) as { extract?: string }
+    const data = (await response.json()) as WikipediaSummaryResponse
     return data.extract ? compactSummary(data.extract) : null
   } catch {
     return null
@@ -41,15 +59,11 @@ async function fetchWikimediaImage(query: string): Promise<string | null> {
   try {
     const response = await fetch(`${WIKIMEDIA_ENDPOINT}?${params.toString()}`, {
       headers: { Accept: 'application/json' },
-      cache: 'no-store',
+      cache: 'force-cache',
     })
 
     if (!response.ok) return null
-    const data = (await response.json()) as {
-      query?: {
-        pages?: Record<string, { thumbnail?: { source?: string } }>
-      }
-    }
+    const data = (await response.json()) as WikimediaResponse
 
     const pages = data.query?.pages ? Object.values(data.query.pages) : []
     const thumbnail = pages[0]?.thumbnail?.source
@@ -97,4 +111,44 @@ export async function enrichActivities(activities: Activity[]): Promise<Activity
       }
     }),
   )
+}
+
+export async function getEnrichedLandmarks(landmarks: Landmark[]): Promise<Landmark[]> {
+  if (landmarksCache) return landmarksCache
+  if (!landmarksPending) {
+    landmarksPending = enrichLandmarks(landmarks)
+      .then((result) => {
+        landmarksCache = result
+        return result
+      })
+      .catch((error) => {
+        console.warn('Failed to enrich landmarks, using static fallback.', error)
+        return landmarks
+      })
+      .finally(() => {
+        landmarksPending = null
+      })
+  }
+
+  return landmarksPending
+}
+
+export async function getEnrichedActivities(activities: Activity[]): Promise<Activity[]> {
+  if (activitiesCache) return activitiesCache
+  if (!activitiesPending) {
+    activitiesPending = enrichActivities(activities)
+      .then((result) => {
+        activitiesCache = result
+        return result
+      })
+      .catch((error) => {
+        console.warn('Failed to enrich activities, using static fallback.', error)
+        return activities
+      })
+      .finally(() => {
+        activitiesPending = null
+      })
+  }
+
+  return activitiesPending
 }

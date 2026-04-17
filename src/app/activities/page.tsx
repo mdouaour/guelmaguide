@@ -5,11 +5,21 @@ import Link from 'next/link'
 import { activities, activityTypes, type Activity, type ActivityType } from '@/lib/activities'
 import { useLanguage } from '@/context/LanguageContext'
 import { getText } from '@/lib/i18n'
-import { enrichActivities } from '@/lib/enrichData'
+import { getEnrichedActivities } from '@/lib/enrichData'
 
 const BOOKMARK_KEY = 'guelmaguide:bookmarked-activities'
 
 type DateFilter = 'all' | 'this-week' | 'upcoming'
+
+const activityTypeLabels: Record<Exclude<ActivityType, 'all'> | 'all', { en: string; ar: string }> = {
+  all: { en: 'all', ar: 'الكل' },
+  wellness: { en: 'wellness', ar: 'استجمام' },
+  culture: { en: 'culture', ar: 'ثقافة' },
+  food: { en: 'food', ar: 'طعام' },
+  outdoor: { en: 'outdoor', ar: 'هواء طلق' },
+  sport: { en: 'sport', ar: 'رياضة' },
+  social: { en: 'social', ar: 'اجتماعي' },
+}
 
 function getDateFilterMatch(activityDate: string, filter: DateFilter) {
   if (filter === 'all') return true
@@ -27,6 +37,7 @@ export default function ActivitiesPage() {
   const [typeFilter, setTypeFilter] = useState<ActivityType>('all')
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
   const [activityData, setActivityData] = useState<Activity[]>(activities)
+  const [isRefreshing, setIsRefreshing] = useState(true)
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
     if (typeof window === 'undefined') return []
     const raw = window.localStorage.getItem(BOOKMARK_KEY)
@@ -48,7 +59,9 @@ export default function ActivitiesPage() {
   }, [activityData, dateFilter, typeFilter])
 
   useEffect(() => {
-    void enrichActivities(activities).then(setActivityData)
+    getEnrichedActivities(activities)
+      .then(setActivityData)
+      .finally(() => setIsRefreshing(false))
   }, [])
 
   const toggleBookmark = (activityId: string) => {
@@ -69,6 +82,9 @@ export default function ActivitiesPage() {
         <p className="mt-1 text-sm text-white/70">
           {lang === 'ar' ? 'صفِّ حسب النوع والتاريخ ثم احفظ ما يعجبك.' : 'Filter by type and date, then bookmark what you like.'}
         </p>
+        {isRefreshing ? (
+          <p className="mt-1 text-xs text-white/50">{lang === 'ar' ? 'جاري تحديث الأنشطة بمحتوى موثوق...' : 'Refreshing activities with trusted public content...'}</p>
+        ) : null}
       </header>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -79,7 +95,7 @@ export default function ActivitiesPage() {
               onClick={() => setTypeFilter(type)}
               className={`rounded-full px-3 py-1.5 text-xs ${typeFilter === type ? 'bg-yellow-500 text-black' : 'border border-white/10 bg-white/5'}`}
             >
-              {type === 'all' && lang === 'ar' ? 'الكل' : type}
+              {activityTypeLabels[type][lang]}
             </button>
           ))}
         </div>

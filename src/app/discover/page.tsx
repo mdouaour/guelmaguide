@@ -6,7 +6,7 @@ import { getAllLandmarkTags, landmarks, type DiscoveryTag } from '@/lib/landmark
 import { useEffect } from 'react'
 import { getText } from '@/lib/i18n'
 import { useLanguage } from '@/context/LanguageContext'
-import { enrichLandmarks } from '@/lib/enrichData'
+import { getEnrichedLandmarks } from '@/lib/enrichData'
 import type { Landmark } from '@/lib/landmarks'
 
 export default function DiscoverPage() {
@@ -14,10 +14,13 @@ export default function DiscoverPage() {
   const [query, setQuery] = useState('')
   const [activeTag, setActiveTag] = useState<DiscoveryTag | 'all'>('all')
   const [landmarkData, setLandmarkData] = useState<Landmark[]>(landmarks)
+  const [isRefreshing, setIsRefreshing] = useState(true)
   const tags = getAllLandmarkTags()
 
   useEffect(() => {
-    void enrichLandmarks(landmarks).then(setLandmarkData)
+    getEnrichedLandmarks(landmarks)
+      .then(setLandmarkData)
+      .finally(() => setIsRefreshing(false))
   }, [])
 
   const normalizedQuery = query.trim().toLowerCase()
@@ -41,6 +44,9 @@ export default function DiscoverPage() {
       <header>
         <h1 className="text-2xl font-semibold">{lang === 'ar' ? 'اكتشف الأماكن' : 'Discover Places'}</h1>
         <p className="mt-1 text-sm text-white/70">{lang === 'ar' ? 'ابحث وصفِّ المعالم حسب الوسوم.' : 'Search and filter landmarks by tags.'}</p>
+        {isRefreshing ? (
+          <p className="mt-1 text-xs text-white/50">{lang === 'ar' ? 'جاري تحديث المحتوى من مصادر عامة...' : 'Refreshing content from public sources...'}</p>
+        ) : null}
       </header>
 
       <div className="mt-4 grid gap-3">

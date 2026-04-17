@@ -4,12 +4,12 @@ export type Language = (typeof languages)[number]
 
 export interface LocalizedText {
   en: string
-  ar?: string
+  ar: string
 }
 
 export function getText(field: LocalizedText | undefined, lang: Language): string {
   if (!field) return ''
-  if (lang === 'ar' && field.ar) return field.ar
+  if (lang === 'ar') return field.ar
   return field.en
 }
 

@@ -28,6 +28,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
+    // Defaults are updated client-side by LanguageProvider based on saved/browser language.
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <body className="antialiased">
         <LanguageProvider>
