@@ -2,14 +2,15 @@ import { activities } from '@/lib/activities'
 import { landmarks, type DiscoveryTag } from '@/lib/landmarks'
 
 const keywordMap: Record<DiscoveryTag, string[]> = {
-  relax: ['relax', 'calm', 'quiet', 'chill', 'rest', 'peaceful'],
-  nature: ['nature', 'green', 'forest', 'spring', 'outdoor', 'park'],
-  food: ['food', 'eat', 'meal', 'taste', 'restaurant', 'market'],
-  romantic: ['romantic', 'couple', 'date', 'sunset'],
-  explore: ['explore', 'discover', 'visit', 'trip', 'adventure'],
-  sport: ['sport', 'run', 'hike', 'walk', 'fitness', 'active'],
-  history: ['history', 'historic', 'roman', 'museum', 'heritage'],
-  culture: ['culture', 'local', 'festival', 'tradition', 'art'],
+  relax: ['relax', 'calm', 'quiet', 'chill', 'rest', 'peaceful', 'استرخاء', 'هادئ', 'راحة'],
+  nature: ['nature', 'green', 'forest', 'spring', 'outdoor', 'park', 'طبيعة', 'غابة', 'حديقة'],
+  food: ['food', 'eat', 'meal', 'taste', 'restaurant', 'market', 'طعام', 'أكل', 'مطعم', 'سوق'],
+  romantic: ['romantic', 'couple', 'date', 'sunset', 'رومانسي', 'زوجين', 'غروب'],
+  explore: ['explore', 'discover', 'visit', 'trip', 'adventure', 'استكشاف', 'اكتشاف', 'زيارة'],
+  sport: ['sport', 'run', 'hike', 'walk', 'fitness', 'active', 'رياضة', 'جري', 'مشي'],
+  history: ['history', 'historic', 'roman', 'museum', 'heritage', 'تاريخ', 'روماني', 'تراث'],
+  culture: ['culture', 'local', 'festival', 'tradition', 'art', 'ثقافة', 'تقليد', 'فن'],
+  social: ['social', 'friends', 'group', 'event', 'community', 'اجتماعي', 'أصدقاء', 'فعالية'],
 }
 
 function extractIntentKeywords(input: string): DiscoveryTag[] {
