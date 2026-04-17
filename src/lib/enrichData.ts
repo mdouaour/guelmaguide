@@ -4,13 +4,14 @@ import type { Landmark } from '@/lib/landmarks'
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter'
 const WIKIPEDIA_ENDPOINT = 'https://en.wikipedia.org/api/rest_v1/page/summary'
 const WIKIMEDIA_ENDPOINT = 'https://commons.wikimedia.org/w/api.php'
-const OSM_SEARCH_CENTER = { lat: 36.4621, lng: 7.4247 }
+const OSM_SEARCH_CENTER = { lat: 36.4621, lng: 7.4247 } // Guelma city center
 const OSM_SEARCH_RADIUS_METERS = 30000
-const OSM_QUERY_TIMEOUT_SECONDS = 12
+const OSM_QUERY_TIMEOUT_SECONDS = 12 // Overpass can be slower than REST endpoints during peak load.
 const OSM_MATCH_MAX_DISTANCE_KM = 8
 const CACHE_TTL_MS = 1000 * 60 * 60 * 12
 const LOCAL_CACHE_PREFIX = 'guelmaguide:enrich'
 const UNSPLASH_FALLBACK_BASE = 'https://source.unsplash.com/1600x900/?'
+const DEFAULT_REQUEST_TIMEOUT_MS = 4500
 
 interface CacheEnvelope<T> {
   expiresAt: number
@@ -115,7 +116,7 @@ function setLocalCache<T>(key: string, value: T): void {
   }
 }
 
-function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = 4500): Promise<Response> {
+function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -231,6 +232,7 @@ export async function fetchPlacesFromOSM(): Promise<OSMPlace[]> {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       },
       body: `data=${encodeURIComponent(query)}`,
+      // We prioritize stable/fast enrichment over real-time freshness.
       cache: 'force-cache',
     })
       .then(async (response) => {
@@ -287,7 +289,14 @@ export async function fetchWikipediaSummary(title: string): Promise<string | nul
 
 export async function fetchWikimediaImage(title: string): Promise<string | null> {
   const normalizedTitle = title.trim()
-  if (!normalizedTitle) return buildUnsplashFallback('guelma,algeria,travel')
+  if (!normalizedTitle) {
+    const defaultKey = `${LOCAL_CACHE_PREFIX}:wikimedia:default`
+    const localCached = getLocalCache<string | null>(defaultKey)
+    if (localCached.hit) return localCached.value
+    const fallback = buildUnsplashFallback('guelma,algeria,travel')
+    setLocalCache(defaultKey, fallback)
+    return fallback
+  }
   if (wikimediaImageCache.has(normalizedTitle)) return wikimediaImageCache.get(normalizedTitle) ?? null
 
   const localStorageKey = `${LOCAL_CACHE_PREFIX}:wikimedia:${normalizedTitle.toLowerCase()}`
