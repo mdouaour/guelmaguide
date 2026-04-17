@@ -4,21 +4,16 @@ import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 
 export const metadata: Metadata = {
-  title: 'GuelmaGuide AI | Discover Guelma, Algeria',
-  description: 'Your AI-powered guide to Guelma, Algeria. Explore ancient Roman ruins, natural hot springs, and rich cultural heritage with our intelligent travel companion.',
-  keywords: ['Guelma', 'Algeria', 'tourism', 'travel guide', 'Roman ruins', 'Hammam Debagh', 'AI guide'],
+  title: 'GuelmaGuide | Smart discovery in Guelma',
+  description: 'Explore places and activities in Guelma with simple browsing, structured suggestions, and a lightweight AI guide.',
+  keywords: ['Guelma', 'Algeria', 'discover places', 'activities', 'AI guide', 'smart city guide'],
   openGraph: {
-    title: 'GuelmaGuide AI | Discover Guelma, Algeria',
-    description: 'Your AI-powered guide to Guelma, Algeria.',
+    title: 'GuelmaGuide | Smart discovery in Guelma',
+    description: 'Explore places and activities in Guelma with a lightweight AI guide.',
     url: process.env.NEXT_PUBLIC_APP_URL || 'https://guelma.guide',
-    siteName: 'GuelmaGuide AI',
+    siteName: 'GuelmaGuide',
     locale: 'en_US',
     type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'GuelmaGuide AI | Discover Guelma, Algeria',
-    description: 'Your AI-powered guide to Guelma, Algeria.',
   },
   robots: {
     index: true,
@@ -28,9 +23,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
     <html lang="en">
       <body className="antialiased">
