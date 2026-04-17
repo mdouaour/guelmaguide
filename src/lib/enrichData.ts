@@ -6,6 +6,8 @@ const WIKIPEDIA_ENDPOINT = 'https://en.wikipedia.org/api/rest_v1/page/summary'
 const WIKIMEDIA_ENDPOINT = 'https://commons.wikimedia.org/w/api.php'
 const OSM_SEARCH_CENTER = { lat: 36.4621, lng: 7.4247 }
 const OSM_SEARCH_RADIUS_METERS = 30000
+const OSM_QUERY_TIMEOUT_SECONDS = 12
+const OSM_MATCH_MAX_DISTANCE_KM = 8
 const CACHE_TTL_MS = 1000 * 60 * 60 * 12
 const LOCAL_CACHE_PREFIX = 'guelmaguide:enrich'
 const UNSPLASH_FALLBACK_BASE = 'https://source.unsplash.com/1600x900/?'
@@ -13,6 +15,11 @@ const UNSPLASH_FALLBACK_BASE = 'https://source.unsplash.com/1600x900/?'
 interface CacheEnvelope<T> {
   expiresAt: number
   value: T
+}
+
+interface CacheReadResult<T> {
+  hit: boolean
+  value: T | null
 }
 
 export interface OSMPlace {
@@ -74,22 +81,22 @@ function isBrowser(): boolean {
   return typeof window !== 'undefined'
 }
 
-function getLocalCache<T>(key: string): T | null {
-  if (!isBrowser()) return null
+function getLocalCache<T>(key: string): CacheReadResult<T> {
+  if (!isBrowser()) return { hit: false, value: null }
 
   try {
     const raw = window.localStorage.getItem(key)
-    if (!raw) return null
+    if (!raw) return { hit: false, value: null }
     const parsed = JSON.parse(raw) as CacheEnvelope<T>
 
     if (typeof parsed.expiresAt !== 'number' || parsed.expiresAt < Date.now()) {
       window.localStorage.removeItem(key)
-      return null
+      return { hit: false, value: null }
     }
 
-    return parsed.value
+    return { hit: true, value: parsed.value ?? null }
   } catch {
-    return null
+    return { hit: false, value: null }
   }
 }
 
@@ -108,7 +115,7 @@ function setLocalCache<T>(key: string, value: T): void {
   }
 }
 
-function getWithTimeout(input: string, init: RequestInit = {}, timeoutMs = 4500): Promise<Response> {
+function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = 4500): Promise<Response> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -138,7 +145,10 @@ function mapToOSMPlaces(data: OSMResponse): OSMPlace[] {
       const tags = element.tags
       if (!tags) return null
 
-      const kind = tags.tourism ? 'tourism' : tags.leisure ? 'leisure' : tags.historic ? 'historic' : null
+      let kind: OSMPlace['kind'] | null = null
+      if (tags.tourism) kind = 'tourism'
+      else if (tags.leisure) kind = 'leisure'
+      else if (tags.historic) kind = 'historic'
       if (!kind) return null
 
       const name = tags.name?.trim()
@@ -184,7 +194,7 @@ function findClosestPlace(coordinates: { lat: number; lng: number }, places: OSM
 
   for (const place of places) {
     const distance = calculateDistanceKm(coordinates, { lat: place.lat, lng: place.lng })
-    if (distance <= 8 && distance < nearestDistance) {
+    if (distance <= OSM_MATCH_MAX_DISTANCE_KM && distance < nearestDistance) {
       nearestDistance = distance
       nearest = place
     }
@@ -198,14 +208,14 @@ export async function fetchPlacesFromOSM(): Promise<OSMPlace[]> {
 
   const localStorageKey = `${LOCAL_CACHE_PREFIX}:osm-places`
   const localCached = getLocalCache<OSMPlace[]>(localStorageKey)
-  if (localCached) {
-    placesCache = localCached
-    return localCached
+  if (localCached.hit && localCached.value) {
+    placesCache = localCached.value
+    return localCached.value
   }
 
   if (!placesPending) {
     const query = `
-      [out:json][timeout:12];
+      [out:json][timeout:${OSM_QUERY_TIMEOUT_SECONDS}];
       (
         nwr["tourism"](around:${OSM_SEARCH_RADIUS_METERS},${OSM_SEARCH_CENTER.lat},${OSM_SEARCH_CENTER.lng});
         nwr["leisure"](around:${OSM_SEARCH_RADIUS_METERS},${OSM_SEARCH_CENTER.lat},${OSM_SEARCH_CENTER.lng});
@@ -214,7 +224,7 @@ export async function fetchPlacesFromOSM(): Promise<OSMPlace[]> {
       out center 120;
     `.trim()
 
-    placesPending = getWithTimeout(OVERPASS_ENDPOINT, {
+    placesPending = fetchWithTimeout(OVERPASS_ENDPOINT, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -247,13 +257,13 @@ export async function fetchWikipediaSummary(title: string): Promise<string | nul
 
   const localStorageKey = `${LOCAL_CACHE_PREFIX}:wikipedia:${normalizedTitle.toLowerCase()}`
   const localCached = getLocalCache<string | null>(localStorageKey)
-  if (localCached !== null) {
-    wikipediaSummaryCache.set(normalizedTitle, localCached)
-    return localCached
+  if (localCached.hit) {
+    wikipediaSummaryCache.set(normalizedTitle, localCached.value)
+    return localCached.value
   }
 
   try {
-    const response = await getWithTimeout(`${WIKIPEDIA_ENDPOINT}/${encodeURIComponent(normalizedTitle)}`, {
+    const response = await fetchWithTimeout(`${WIKIPEDIA_ENDPOINT}/${encodeURIComponent(normalizedTitle)}`, {
       headers: { Accept: 'application/json' },
       cache: 'force-cache',
     })
@@ -282,9 +292,9 @@ export async function fetchWikimediaImage(title: string): Promise<string | null>
 
   const localStorageKey = `${LOCAL_CACHE_PREFIX}:wikimedia:${normalizedTitle.toLowerCase()}`
   const localCached = getLocalCache<string | null>(localStorageKey)
-  if (localCached !== null) {
-    wikimediaImageCache.set(normalizedTitle, localCached)
-    return localCached
+  if (localCached.hit) {
+    wikimediaImageCache.set(normalizedTitle, localCached.value)
+    return localCached.value
   }
 
   const params = new URLSearchParams({
@@ -300,7 +310,7 @@ export async function fetchWikimediaImage(title: string): Promise<string | null>
   })
 
   try {
-    const response = await getWithTimeout(`${WIKIMEDIA_ENDPOINT}?${params.toString()}`, {
+    const response = await fetchWithTimeout(`${WIKIMEDIA_ENDPOINT}?${params.toString()}`, {
       headers: { Accept: 'application/json' },
       cache: 'force-cache',
     })
