@@ -20,7 +20,9 @@ interface WikimediaResponse {
 }
 
 /**
- * Normalize text spacing and keep only the first two sentences for concise previews.
+ * Normalize whitespace and extract a short preview from long text.
+ * @param text Raw summary text from external content sources.
+ * @returns A compact summary limited to the first two sentences.
  */
 function compactSummary(text: string): string {
   const normalized = text.replace(/\s+/g, ' ').trim()

@@ -11,7 +11,7 @@ const BOOKMARK_KEY = 'guelmaguide:bookmarked-activities'
 
 type DateFilter = 'all' | 'this-week' | 'upcoming'
 
-const activityTypeLabels: Record<Exclude<ActivityType, 'all'> | 'all', { en: string; ar: string }> = {
+const activityTypeLabels: Record<ActivityType, { en: string; ar: string }> = {
   all: { en: 'all', ar: 'الكل' },
   wellness: { en: 'wellness', ar: 'استجمام' },
   culture: { en: 'culture', ar: 'ثقافة' },

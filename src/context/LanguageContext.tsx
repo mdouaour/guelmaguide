@@ -23,7 +23,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
     if (detected === 'en') return
 
-    // Defer language switch to the next tick so the first client render stays aligned with SSR defaults.
+    // Defer the language switch so the first client render still matches SSR (en/ltr), then apply detected language safely.
     const timeoutId = window.setTimeout(() => {
       setLang(detected)
     }, 0)
