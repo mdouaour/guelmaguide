@@ -3,6 +3,7 @@
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { useLanguage } from '@/context/LanguageContext'
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -25,6 +26,7 @@ interface LeafletMapProps {
 }
 
 export default function LeafletMap({ markers, zoom = 13 }: LeafletMapProps) {
+  const { lang } = useLanguage()
   const fallbackCenter: [number, number] = [36.4621, 7.4247]
   const center: [number, number] = markers[0]
     ? [markers[0].coordinates.lat, markers[0].coordinates.lng]
@@ -49,7 +51,9 @@ export default function LeafletMap({ markers, zoom = 13 }: LeafletMapProps) {
             {marker.mapsUrl ? (
               <>
                 <br />
-                <a href={marker.mapsUrl} target="_blank" rel="noopener noreferrer">Open in Maps</a>
+                <a href={marker.mapsUrl} target="_blank" rel="noopener noreferrer">
+                  {lang === 'ar' ? 'افتح في الخرائط' : 'Open in Maps'}
+                </a>
               </>
             ) : null}
           </Popup>
