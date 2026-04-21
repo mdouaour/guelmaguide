@@ -1,1 +1,1 @@
-"""Gelma Guide backend package."""
+"""Guelma Guide backend package."""
