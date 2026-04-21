@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     DATABASE_URL: str = Field(
-        default="postgresql+psycopg://postgres:postgres@localhost:5432/guelmaguide"
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/guelma_guide"
     )
 
     AI_API_KEY: str | None = None
