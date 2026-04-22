@@ -70,6 +70,7 @@ def _activity_time_of_day(value: datetime) -> TimeOfDay:
 
 
 def _to_utc(value: datetime) -> datetime:
+    """Normalize datetimes to UTC; naive datetimes are treated as UTC by convention."""
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)

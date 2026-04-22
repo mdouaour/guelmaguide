@@ -9,10 +9,10 @@ from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-os.environ.setdefault("JWT_SECRET_KEY", "test_secret_key_for_phase6_1234567890")
-os.environ.setdefault("RATE_LIMIT_LOGIN_PER_WINDOW", "1000")
-os.environ.setdefault("RATE_LIMIT_REGISTER_PER_WINDOW", "1000")
-os.environ.setdefault("RATE_LIMIT_AI_PER_WINDOW", "1000")
+os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_phase6_1234567890"
+os.environ["RATE_LIMIT_LOGIN_PER_WINDOW"] = "1000"
+os.environ["RATE_LIMIT_REGISTER_PER_WINDOW"] = "1000"
+os.environ["RATE_LIMIT_AI_PER_WINDOW"] = "1000"
 
 from app.db.base_class import Base
 from app.db.session import get_db

@@ -20,6 +20,9 @@ def _get_identifier(request: Request) -> str:
 def _enforce_memory_limit(key: str, *, limit: int, window_seconds: int) -> None:
     now = time()
     with _memory_lock:
+        expired_keys = [bucket_key for bucket_key, (_, expires_at) in _memory_buckets.items() if now >= expires_at]
+        for bucket_key in expired_keys:
+            _memory_buckets.pop(bucket_key, None)
         count, expires_at = _memory_buckets.get(key, (0, now + window_seconds))
         if now >= expires_at:
             count, expires_at = 0, now + window_seconds
