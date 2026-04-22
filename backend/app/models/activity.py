@@ -21,8 +21,12 @@ class Activity(TimestampedBase):
 
     title: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    place_id: Mapped[int] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
-    organizer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    place_id: Mapped[int] = mapped_column(
+        ForeignKey("places.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    organizer_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     date_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
     max_participants: Mapped[int] = mapped_column(Integer, nullable=False)
 

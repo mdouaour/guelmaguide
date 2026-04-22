@@ -14,6 +14,9 @@ from app.db.session import get_db
 from app.models.user import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_PREFIX}/auth/login", auto_error=False
+)
 
 
 def get_password_hash(password: str) -> str:
@@ -63,6 +66,25 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
+    return user
+
+
+def get_optional_current_user(
+    db: Annotated[Session, Depends(get_db)],
+    token: Annotated[str | None, Depends(oauth2_scheme_optional)],
+) -> User | None:
+    if token is None:
+        return None
+    try:
+        payload = decode_access_token(token)
+    except HTTPException:
+        return None
+    email = payload.get("sub")
+    if not isinstance(email, str):
+        return None
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None:
+        return None
     return user
 
 
