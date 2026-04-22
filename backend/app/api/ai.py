@@ -16,10 +16,10 @@ router = APIRouter()
 def recommendations(
     latitude: Annotated[float, Query(ge=-90, le=90)],
     longitude: Annotated[float, Query(ge=-180, le=180)],
-    category: Annotated[str | None, Query()] = None,
-    time_of_day: Annotated[TimeOfDay | None, Query()] = None,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
+    category: Annotated[str | None, Query()] = None,
+    time_of_day: Annotated[TimeOfDay | None, Query()] = None,
 ) -> RecommendationsResponse:
     return get_recommendations(
         db,

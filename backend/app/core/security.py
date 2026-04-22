@@ -75,14 +75,17 @@ def get_optional_current_user(
 ) -> User | None:
     if token is None:
         return None
-    payload = decode_access_token(token)
+    try:
+        payload = decode_access_token(token)
+    except HTTPException:
+        return None
     email = payload.get("sub")
     if not isinstance(email, str):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token subject",
-        )
-    return db.scalar(select(User).where(User.email == email))
+        return None
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None:
+        return None
+    return user
 
 
 def require_roles(*roles: UserRole) -> Callable:

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Activity, ActivityRegistration, Place
+from app.models.place import PlaceCategory
 from app.schemas.ai import (
     RecommendedActivity,
     RecommendedPlace,
@@ -12,19 +13,37 @@ from app.schemas.ai import (
     TimeOfDay,
 )
 from app.services.activity_service import get_activity_participants_counts
-from app.services.place_service import calculate_distance_km, list_places
+from app.services.place_service import calculate_distance_km, list_nearby_places, list_places
 
 MAX_PLACE_RESULTS = 6
 MAX_ACTIVITY_RESULTS = 6
+PLACE_NEARBY_RADIUS_KM = 60.0
+SECONDS_PER_HOUR = 3600.0
+DIVERSIFY_TOP_N = 3
+DIVERSIFY_KEEP_HEAD = 2
+
+PLACE_BASE_DISTANCE_SCORE = 60.0
+PLACE_DISTANCE_PENALTY_PER_KM = 2.0
+PLACE_CATEGORY_MATCH_BONUS = 25.0
+PLACE_TIME_MATCH_BONUS = 8.0
+PLACE_HISTORY_MATCH_PER_EVENT = 3.0
+PLACE_HISTORY_MATCH_MAX = 12.0
+
+ACTIVITY_BASE_DISTANCE_SCORE = 45.0
+ACTIVITY_DISTANCE_PENALTY_PER_KM = 1.5
+ACTIVITY_SOON_BONUS_MAX = 20.0
+ACTIVITY_SOON_HOURS_FACTOR = 2.0
+ACTIVITY_CATEGORY_MATCH_BONUS = 25.0
+ACTIVITY_TIME_MATCH_BONUS = 12.0
+ACTIVITY_HISTORY_MATCH_PER_EVENT = 3.0
+ACTIVITY_HISTORY_MATCH_MAX = 12.0
+ACTIVITY_NOT_JOINED_BONUS = 8.0
+ACTIVITY_ALREADY_JOINED_PENALTY = 20.0
 
 CATEGORY_ALIASES = {
     "forest": "nature",
-    "nature": "nature",
     "sport": "sports",
-    "sports": "sports",
     "relaxation": "thermal_baths",
-    "thermal_baths": "thermal_baths",
-    "culture": "culture",
 }
 
 TIME_CATEGORY_PREFERENCES: dict[TimeOfDay, set[str]] = {
@@ -34,17 +53,18 @@ TIME_CATEGORY_PREFERENCES: dict[TimeOfDay, set[str]] = {
 }
 
 
-def _normalize_category(category: str | None) -> str | None:
+def _normalize_category(category: str | PlaceCategory | None) -> str | None:
     if category is None:
         return None
-    return CATEGORY_ALIASES.get(category.strip().lower())
+    normalized_input = category.value if isinstance(category, PlaceCategory) else category.strip().lower()
+    return CATEGORY_ALIASES.get(normalized_input, normalized_input)
 
 
 def _activity_time_of_day(value: datetime) -> TimeOfDay:
-    local_hour = value.astimezone(UTC).hour
-    if local_hour < 12:
+    activity_hour = value.astimezone().hour if value.tzinfo is not None else value.hour
+    if activity_hour < 12:
         return TimeOfDay.MORNING
-    if local_hour < 18:
+    if activity_hour < 18:
         return TimeOfDay.AFTERNOON
     return TimeOfDay.EVENING
 
@@ -53,7 +73,7 @@ def _user_history_profile(db: Session, user_id: int) -> tuple[set[int], Counter[
     joined_ids_statement = select(ActivityRegistration.activity_id).where(
         ActivityRegistration.user_id == user_id
     )
-    joined_ids = {int(activity_id) for activity_id in db.scalars(joined_ids_statement)}
+    joined_ids = {activity_id for activity_id in db.scalars(joined_ids_statement)}
 
     category_statement = (
         select(Place.category)
@@ -63,24 +83,45 @@ def _user_history_profile(db: Session, user_id: int) -> tuple[set[int], Counter[
         .where(ActivityRegistration.user_id == user_id)
     )
     category_counter = Counter(
-        _normalize_category(str(category))
+        _normalize_category(category)
         for category in db.scalars(category_statement)
-        if _normalize_category(str(category)) is not None
+        if _normalize_category(category) is not None
     )
     return joined_ids, category_counter
 
 
+def _calculate_soon_bonus(starts_in_hours: float) -> float:
+    return max(
+        0.0,
+        ACTIVITY_SOON_BONUS_MAX
+        - min(ACTIVITY_SOON_BONUS_MAX, starts_in_hours / ACTIVITY_SOON_HOURS_FACTOR),
+    )
+
+
 def _diversify_places(places: list[RecommendedPlace]) -> list[RecommendedPlace]:
-    if len(places) < 3:
+    if len(places) < DIVERSIFY_TOP_N:
         return places
-    categories = {str(place.category) for place in places[:3]}
+    categories = {place.category.value for place in places[:DIVERSIFY_TOP_N]}
     if len(categories) > 1:
         return places
-    for index, candidate in enumerate(places[3:], start=3):
-        if str(candidate.category) not in categories:
-            diversified = places[:2] + [candidate] + places[3:index] + places[index + 1 :]
-            return diversified
-    return places
+    diverse_candidate_position = next(
+        (
+            position
+            for position, candidate in enumerate(
+                places[DIVERSIFY_TOP_N:], start=DIVERSIFY_TOP_N
+            )
+            if candidate.category.value not in categories
+        ),
+        None,
+    )
+    if diverse_candidate_position is None:
+        return places
+    diverse_candidate = places[diverse_candidate_position]
+    remaining = (
+        places[DIVERSIFY_TOP_N:diverse_candidate_position]
+        + places[diverse_candidate_position + 1 :]
+    )
+    return places[:DIVERSIFY_KEEP_HEAD] + [diverse_candidate] + remaining
 
 
 def get_recommendations(
@@ -100,18 +141,31 @@ def get_recommendations(
     if current_user_id is not None:
         joined_activity_ids, history_categories = _user_history_profile(db, current_user_id)
 
+    nearby_places = list_nearby_places(
+        db, latitude=latitude, longitude=longitude, radius_km=PLACE_NEARBY_RADIUS_KM
+    )
+    if len(nearby_places) >= MAX_PLACE_RESULTS:
+        place_candidates = nearby_places
+    else:
+        nearby_ids = {place.id for place in nearby_places}
+        additional_places = [place for place in list_places(db) if place.id not in nearby_ids]
+        place_candidates = nearby_places + additional_places
+
     recommended_places: list[RecommendedPlace] = []
-    for place in list_places(db):
-        normalized_place_category = _normalize_category(str(place.category))
+    for place in place_candidates:
+        normalized_place_category = _normalize_category(place.category)
         distance_km = calculate_distance_km(latitude, longitude, place.latitude, place.longitude)
 
-        score = max(0.0, 60.0 - (distance_km * 2.0))
+        score = max(0.0, PLACE_BASE_DISTANCE_SCORE - (distance_km * PLACE_DISTANCE_PENALTY_PER_KM))
         if normalized_category and normalized_place_category == normalized_category:
-            score += 25.0
+            score += PLACE_CATEGORY_MATCH_BONUS
         if time_of_day and normalized_place_category in TIME_CATEGORY_PREFERENCES[time_of_day]:
-            score += 8.0
+            score += PLACE_TIME_MATCH_BONUS
         if normalized_place_category in history_categories:
-            score += min(12.0, float(history_categories[normalized_place_category] * 3))
+            score += min(
+                PLACE_HISTORY_MATCH_MAX,
+                float(history_categories[normalized_place_category] * PLACE_HISTORY_MATCH_PER_EVENT),
+            )
 
         recommended_places.append(
             RecommendedPlace(
@@ -140,25 +194,30 @@ def get_recommendations(
         if participants_count >= activity.max_participants:
             continue
 
-        normalized_place_category = _normalize_category(str(place.category))
+        normalized_place_category = _normalize_category(place.category)
         distance_km = calculate_distance_km(latitude, longitude, place.latitude, place.longitude)
-        starts_in_hours = max(0.0, (activity.date_time - now).total_seconds() / 3600)
+        starts_in_hours = max(0.0, (activity.date_time - now).total_seconds() / SECONDS_PER_HOUR)
 
-        score = max(0.0, 45.0 - (distance_km * 1.5))
-        score += max(0.0, 20.0 - min(20.0, starts_in_hours / 2.0))
+        score = max(
+            0.0, ACTIVITY_BASE_DISTANCE_SCORE - (distance_km * ACTIVITY_DISTANCE_PENALTY_PER_KM)
+        )
+        score += _calculate_soon_bonus(starts_in_hours)
 
         if normalized_category and normalized_place_category == normalized_category:
-            score += 25.0
+            score += ACTIVITY_CATEGORY_MATCH_BONUS
         if time_of_day and _activity_time_of_day(activity.date_time) == time_of_day:
-            score += 12.0
+            score += ACTIVITY_TIME_MATCH_BONUS
         if normalized_place_category in history_categories:
-            score += min(12.0, float(history_categories[normalized_place_category] * 3))
+            score += min(
+                ACTIVITY_HISTORY_MATCH_MAX,
+                float(history_categories[normalized_place_category] * ACTIVITY_HISTORY_MATCH_PER_EVENT),
+            )
 
         is_joined = activity.id in joined_activity_ids
         if is_joined:
-            score -= 20.0
+            score -= ACTIVITY_ALREADY_JOINED_PENALTY
         elif current_user_id is not None:
-            score += 8.0
+            score += ACTIVITY_NOT_JOINED_BONUS
 
         recommended_activities.append(
             RecommendedActivity(
