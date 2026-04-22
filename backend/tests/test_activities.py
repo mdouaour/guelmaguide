@@ -6,9 +6,14 @@ from sqlalchemy.orm import Session
 from app.models import User, UserRole
 
 
-def _register_and_login(client: TestClient, email: str, password: str = "Password1!") -> str:
-    client.post("/api/v1/auth/register", json={"email": email, "password": password})
+def _register_user(client: TestClient, email: str, password: str = "Password1!") -> None:
+    response = client.post("/api/v1/auth/register", json={"email": email, "password": password})
+    assert response.status_code == 201
+
+
+def _login_user(client: TestClient, email: str, password: str = "Password1!") -> str:
     login_response = client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    assert login_response.status_code == 200
     return login_response.json()["access_token"]
 
 
@@ -38,9 +43,9 @@ def _create_place(client: TestClient, organizer_token: str) -> int:
 
 def test_activities_availability_filter_and_pagination(client: TestClient, db_session: Session) -> None:
     organizer_email = "organizer-act@example.com"
-    _register_and_login(client, organizer_email)
+    _register_user(client, organizer_email)
     _set_role(db_session, organizer_email, UserRole.ORGANIZER)
-    organizer_token = _register_and_login(client, organizer_email)
+    organizer_token = _login_user(client, organizer_email)
     place_id = _create_place(client, organizer_token)
 
     create_activity = client.post(
@@ -57,7 +62,8 @@ def test_activities_availability_filter_and_pagination(client: TestClient, db_se
     assert create_activity.status_code == 201
     activity_id = create_activity.json()["id"]
 
-    visitor_token = _register_and_login(client, "visitor-act@example.com")
+    _register_user(client, "visitor-act@example.com")
+    visitor_token = _login_user(client, "visitor-act@example.com")
     join_response = client.post(
         f"/api/v1/activities/{activity_id}/join",
         headers={"Authorization": f"Bearer {visitor_token}"},
@@ -76,9 +82,9 @@ def test_activities_availability_filter_and_pagination(client: TestClient, db_se
 
 def test_join_activity_when_full_returns_409(client: TestClient, db_session: Session) -> None:
     organizer_email = "organizer-full@example.com"
-    _register_and_login(client, organizer_email)
+    _register_user(client, organizer_email)
     _set_role(db_session, organizer_email, UserRole.ORGANIZER)
-    organizer_token = _register_and_login(client, organizer_email)
+    organizer_token = _login_user(client, organizer_email)
     place_id = _create_place(client, organizer_token)
 
     create_activity = client.post(
@@ -94,8 +100,10 @@ def test_join_activity_when_full_returns_409(client: TestClient, db_session: Ses
     )
     activity_id = create_activity.json()["id"]
 
-    first = _register_and_login(client, "first@example.com")
-    second = _register_and_login(client, "second@example.com")
+    _register_user(client, "first@example.com")
+    _register_user(client, "second@example.com")
+    first = _login_user(client, "first@example.com")
+    second = _login_user(client, "second@example.com")
 
     assert (
         client.post(
