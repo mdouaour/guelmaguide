@@ -69,6 +69,12 @@ def _activity_time_of_day(value: datetime) -> TimeOfDay:
     return TimeOfDay.EVENING
 
 
+def _to_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def _user_history_profile(db: Session, user_id: int) -> tuple[set[int], Counter[str]]:
     joined_ids_statement = select(ActivityRegistration.activity_id).where(
         ActivityRegistration.user_id == user_id
@@ -197,7 +203,9 @@ def get_recommendations(
 
         normalized_place_category = _normalize_category(place.category)
         distance_km = calculate_distance_km(latitude, longitude, place.latitude, place.longitude)
-        starts_in_hours = max(0.0, (activity.date_time - now).total_seconds() / SECONDS_PER_HOUR)
+        starts_in_hours = max(
+            0.0, (_to_utc(activity.date_time) - now).total_seconds() / SECONDS_PER_HOUR
+        )
 
         score = max(
             0.0, ACTIVITY_BASE_DISTANCE_SCORE - (distance_km * ACTIVITY_DISTANCE_PENALTY_PER_KM)
