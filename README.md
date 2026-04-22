@@ -27,6 +27,12 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Backend (FastAPI)
+
+Backend docs, migrations, seed data, tests, and deployment setup are in:
+
+- `backend/README.md`
+
 ## SEO
 
 Sitemap and robots are generated from the App Router metadata files:

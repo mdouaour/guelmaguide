@@ -1,4 +1,5 @@
 from typing import Annotated
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
@@ -22,6 +23,7 @@ from app.services.activity_service import (
 )
 
 router = APIRouter()
+logger = logging.getLogger("app.activities")
 
 
 def _to_activity_read(db: Session, activity: Activity) -> ActivityRead:
@@ -68,11 +70,24 @@ def join_activity_endpoint(
     try:
         registration = join_activity(db, activity_id=activity_id, user_id=current_user.id)
     except ActivityNotFoundError as exc:
+        logger.warning(
+            "activity_join_failed",
+            extra={"activity_id": activity_id, "user_id": current_user.id, "reason": str(exc)},
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except DuplicateRegistrationError as exc:
+        logger.warning(
+            "activity_join_failed",
+            extra={"activity_id": activity_id, "user_id": current_user.id, "reason": str(exc)},
+        )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ActivityFullError as exc:
+        logger.warning(
+            "activity_join_failed",
+            extra={"activity_id": activity_id, "user_id": current_user.id, "reason": str(exc)},
+        )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    logger.info("activity_join_success", extra={"activity_id": activity_id, "user_id": current_user.id})
     return ActivityRegistrationRead.model_validate(registration)
 
 
@@ -84,8 +99,13 @@ def leave_activity_endpoint(
 ) -> Response:
     left = leave_activity(db, activity_id=activity_id, user_id=current_user.id)
     if not left:
+        logger.warning(
+            "activity_leave_failed",
+            extra={"activity_id": activity_id, "user_id": current_user.id},
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Registration not found for this activity",
         )
+    logger.info("activity_leave_success", extra={"activity_id": activity_id, "user_id": current_user.id})
     return Response(status_code=status.HTTP_204_NO_CONTENT)

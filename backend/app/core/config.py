@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = Field(..., min_length=32)
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    LOG_LEVEL: str = "INFO"
 
     DATABASE_URL: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5432/guelma_guide"
@@ -20,6 +21,10 @@ class Settings(BaseSettings):
 
     AI_API_KEY: str | None = None
     MAPS_API_KEY: str | None = None
+    AUTH_RATE_LIMIT_REQUESTS: int = 5
+    AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    AI_RATE_LIMIT_REQUESTS: int = 30
+    AI_RATE_LIMIT_WINDOW_SECONDS: int = 60
 
 
 @lru_cache
