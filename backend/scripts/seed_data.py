@@ -77,7 +77,7 @@ def seed_activities(session, organizer_id: int, places: list[Place]) -> None:
         },
     ]
 
-    session.add_all(Activity(**payload) for payload in activities_payload)
+    session.add_all([Activity(**payload) for payload in activities_payload])
     session.commit()
 
 

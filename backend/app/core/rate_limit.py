@@ -15,7 +15,7 @@ class InMemoryRateLimiter:
         window_start = now - window_seconds
         with self._lock:
             bucket = self._requests[key]
-            while bucket and bucket[0] <= window_start:
+            while bucket and bucket[0] < window_start:
                 bucket.popleft()
             if len(bucket) >= limit:
                 return False
