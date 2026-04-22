@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from app.models.activity import Activity
@@ -13,6 +13,14 @@ class ActivityBase(BaseModel):
     place_id: int
     date_time: datetime
     max_participants: int = Field(gt=0)
+
+    @field_validator("title", "description")
+    @classmethod
+    def validate_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Field cannot be blank")
+        return normalized
 
 
 class ActivityCreate(ActivityBase):

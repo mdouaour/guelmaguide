@@ -1,164 +1,180 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { activities, activityTypes, type Activity, type ActivityType } from '@/lib/activities'
+import { getActivities, joinActivity, leaveActivity, type Activity } from '@/lib/api'
 import { useLanguage } from '@/context/LanguageContext'
-import { getText } from '@/lib/i18n'
-import { getEnrichedActivities } from '@/lib/enrichData'
+import { useAuth } from '@/context/AuthContext'
 
-const BOOKMARK_KEY = 'guelmaguide:bookmarked-activities'
-
-type DateFilter = 'all' | 'this-week' | 'upcoming'
-
-const activityTypeLabels: Record<ActivityType, { en: string; ar: string }> = {
-  all: { en: 'all', ar: 'الكل' },
-  wellness: { en: 'wellness', ar: 'استجمام' },
-  culture: { en: 'culture', ar: 'ثقافة' },
-  food: { en: 'food', ar: 'طعام' },
-  outdoor: { en: 'outdoor', ar: 'هواء طلق' },
-  sport: { en: 'sport', ar: 'رياضة' },
-  social: { en: 'social', ar: 'اجتماعي' },
-}
-
-function getDateFilterMatch(activityDate: string, filter: DateFilter) {
-  if (filter === 'all') return true
-
-  const today = new Date('2026-04-20')
-  const date = new Date(activityDate)
-  const diffDays = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (filter === 'this-week') return diffDays >= 0 && diffDays <= 7
-  return diffDays > 7
-}
+const limit = 10
 
 export default function ActivitiesPage() {
   const { lang } = useLanguage()
-  const [typeFilter, setTypeFilter] = useState<ActivityType>('all')
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all')
-  const [activityData, setActivityData] = useState<Activity[]>(activities)
-  const [isRefreshing, setIsRefreshing] = useState(true)
-  const [bookmarks, setBookmarks] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return []
-    const raw = window.localStorage.getItem(BOOKMARK_KEY)
-    if (!raw) return []
-
-    try {
-      return JSON.parse(raw) as string[]
-    } catch {
-      return []
-    }
-  })
-
-  const filteredActivities = useMemo(() => {
-    return activityData.filter((activity) => {
-      const matchesType = typeFilter === 'all' || activity.type === typeFilter
-      const matchesDate = getDateFilterMatch(activity.date, dateFilter)
-      return matchesType && matchesDate
-    })
-  }, [activityData, dateFilter, typeFilter])
+  const { token } = useAuth()
+  const [dateFilter, setDateFilter] = useState('')
+  const [placeFilter, setPlaceFilter] = useState('')
+  const [availabilityOnly, setAvailabilityOnly] = useState(false)
+  const [page, setPage] = useState(1)
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [total, setTotal] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [joinedIds, setJoinedIds] = useState<number[]>([])
 
   useEffect(() => {
-    getEnrichedActivities(activities)
-      .then(setActivityData)
-      .finally(() => setIsRefreshing(false))
-  }, [])
+    let isMounted = true
+    setIsLoading(true)
+    setError(null)
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (dateFilter) params.set('date', dateFilter)
+    if (placeFilter.trim()) params.set('place', placeFilter.trim())
+    if (availabilityOnly) params.set('availability', 'true')
 
-  const toggleBookmark = (activityId: string) => {
-    setBookmarks((previous) => {
-      const next = previous.includes(activityId)
-        ? previous.filter((id) => id !== activityId)
-        : [...previous, activityId]
+    getActivities(params)
+      .then((response) => {
+        if (!isMounted) return
+        setActivities(response.results)
+        setTotal(response.total)
+      })
+      .catch((err) => {
+        if (!isMounted) return
+        setError(err instanceof Error ? err.message : 'Failed to load activities')
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
 
-      localStorage.setItem(BOOKMARK_KEY, JSON.stringify(next))
-      return next
-    })
+    return () => {
+      isMounted = false
+    }
+  }, [availabilityOnly, dateFilter, page, placeFilter])
+
+  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const joinedSet = useMemo(() => new Set(joinedIds), [joinedIds])
+
+  const toggleJoin = async (activityId: number) => {
+    if (!token) {
+      setError(lang === 'ar' ? 'يرجى تسجيل الدخول للانضمام.' : 'Please login to join activities.')
+      return
+    }
+    try {
+      if (joinedSet.has(activityId)) {
+        await leaveActivity(activityId, token)
+        setJoinedIds((previous) => previous.filter((id) => id !== activityId))
+      } else {
+        await joinActivity(activityId, token)
+        setJoinedIds((previous) => [...previous, activityId])
+      }
+      setActivities((previous) =>
+        previous.map((activity) =>
+          activity.id === activityId
+            ? {
+                ...activity,
+                participants_count: joinedSet.has(activityId)
+                  ? Math.max(0, activity.participants_count - 1)
+                  : activity.participants_count + 1,
+              }
+            : activity,
+        ),
+      )
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update registration')
+    }
   }
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
       <header>
-        <h1 className="text-2xl font-semibold">{lang === 'ar' ? 'الأنشطة' : 'Activities'}</h1>
-        <p className="mt-1 text-sm text-white/70">
-          {lang === 'ar' ? 'صفِّ حسب النوع والتاريخ ثم احفظ ما يعجبك.' : 'Filter by type and date, then bookmark what you like.'}
+        <h1 className="text-2xl font-semibold text-slate-900">{lang === 'ar' ? 'الأنشطة' : 'Activities'}</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          {lang === 'ar' ? 'تصفية حسب التاريخ والتوفر والمكان.' : 'Filter by date, availability, and place.'}
         </p>
-        {isRefreshing ? (
-          <p className="mt-1 text-xs text-white/50">{lang === 'ar' ? 'جاري تحديث الأنشطة بمحتوى موثوق...' : 'Refreshing activities with trusted public content...'}</p>
-        ) : null}
       </header>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-wrap gap-2">
-          {activityTypes.map((type) => (
-            <button
-              key={type}
-              onClick={() => setTypeFilter(type)}
-              className={`rounded-full px-3 py-1.5 text-xs ${typeFilter === type ? 'bg-yellow-500 text-black' : 'border border-white/10 bg-white/5'}`}
-            >
-              {activityTypeLabels[type][lang]}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-2 sm:justify-end">
-          {(['all', 'this-week', 'upcoming'] as DateFilter[]).map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setDateFilter(filter)}
-              className={`rounded-full px-3 py-1.5 text-xs ${dateFilter === filter ? 'bg-yellow-500 text-black' : 'border border-white/10 bg-white/5'}`}
-            >
-              {lang === 'ar'
-                ? filter === 'all'
-                  ? 'الكل'
-                  : filter === 'this-week'
-                    ? 'هذا الأسبوع'
-                    : 'قادمة'
-                : filter}
-            </button>
-          ))}
-        </div>
+      <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-4">
+        <input
+          type="date"
+          value={dateFilter}
+          onChange={(event) => {
+            setPage(1)
+            setDateFilter(event.target.value)
+          }}
+          className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+        />
+        <input
+          type="number"
+          min={1}
+          value={placeFilter}
+          onChange={(event) => {
+            setPage(1)
+            setPlaceFilter(event.target.value)
+          }}
+          placeholder={lang === 'ar' ? 'رقم المكان' : 'Place ID'}
+          className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+        />
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={availabilityOnly}
+            onChange={(event) => {
+              setPage(1)
+              setAvailabilityOnly(event.target.checked)
+            }}
+          />
+          {lang === 'ar' ? 'متاح فقط' : 'Available only'}
+        </label>
       </div>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2">
-        {filteredActivities.map((activity) => {
-          const isBookmarked = bookmarks.includes(activity.id)
+      {isLoading ? <p className="mt-4 text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading activities...'}</p> : null}
+      {error ? <p className="mt-4 text-sm text-rose-600">{error}</p> : null}
 
+      <section className="mt-6 grid gap-4 sm:grid-cols-2">
+        {activities.map((activity) => {
+          const isJoined = joinedSet.has(activity.id)
+          const isFull = activity.participants_count >= activity.max_participants && !isJoined
           return (
-            <article key={activity.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-              <img src={activity.image} alt={getText(activity.title, lang)} className="h-44 w-full object-cover" />
-              <div className="p-4">
-                <p className="text-xs uppercase text-yellow-400">{activity.type}</p>
-                <h2 className="mt-1 text-lg font-semibold">{getText(activity.title, lang)}</h2>
-                <p className="mt-1 text-sm text-white/70">{getText(activity.description, lang)}</p>
-                <p className="mt-2 text-xs text-white/60">{activity.date} · {activity.time}</p>
-                <p className="mt-1 text-xs text-white/60">{getText(activity.location, lang)}</p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {activity.tags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/70">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={() => toggleBookmark(activity.id)}
-                    className="rounded-md border border-white/10 px-3 py-1.5 text-xs hover:border-yellow-400/50"
-                  >
-                    {lang === 'ar' ? (isBookmarked ? 'تم الحفظ' : 'حفظ') : isBookmarked ? 'Bookmarked' : 'Bookmark'}
-                  </button>
-                  <a href={`https://maps.google.com/?q=${activity.coordinates.lat},${activity.coordinates.lng}`} target="_blank" rel="noopener noreferrer" className="rounded-md border border-white/10 px-3 py-1.5 text-xs hover:border-yellow-400/50">
-                    {lang === 'ar' ? 'الخريطة' : 'Map link'}
-                  </a>
-                </div>
-              </div>
+            <article key={activity.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900">{activity.title}</h2>
+              <p className="mt-1 text-sm text-slate-600">{activity.description}</p>
+              <p className="mt-2 text-xs text-slate-500">{new Date(activity.date_time).toLocaleString()}</p>
+              <p className="text-xs text-slate-500">
+                {lang === 'ar' ? 'المكان' : 'Place'} #{activity.place_id}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {activity.participants_count}/{activity.max_participants} {lang === 'ar' ? 'مشاركين' : 'participants'}
+              </p>
+              <button
+                onClick={() => toggleJoin(activity.id)}
+                disabled={isFull}
+                className="mt-3 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isJoined ? (lang === 'ar' ? 'مغادرة' : 'Leave') : lang === 'ar' ? 'انضمام' : 'Join'}
+              </button>
             </article>
           )
         })}
       </section>
 
-      <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-        {lang === 'ar' ? 'تحتاج مساعدة للاختيار؟ ' : 'Need help choosing? '}
-        <Link href="/ai" className="text-yellow-400">{lang === 'ar' ? 'استخدم الدليل الذكي' : 'Use the AI guide'}</Link>.
+      <div className="mt-6 flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+        <p>
+          {lang === 'ar' ? 'الصفحة' : 'Page'} {page} / {totalPages}
+        </p>
+        <div className="flex gap-2">
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage((previous) => Math.max(1, previous - 1))}
+            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-50"
+          >
+            {lang === 'ar' ? 'السابق' : 'Prev'}
+          </button>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
+            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-50"
+          >
+            {lang === 'ar' ? 'التالي' : 'Next'}
+          </button>
+        </div>
       </div>
     </div>
   )
