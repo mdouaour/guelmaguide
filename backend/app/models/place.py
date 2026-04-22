@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 class PlaceCategory(str, Enum):
     FOREST = "forest"
-    SPORT = "sport"
     SPORTS = "sports"
     RELAXATION = "relaxation"
     CULTURE = "culture"
@@ -26,7 +25,7 @@ class Place(TimestampedBase):
     __tablename__ = "places"
     __table_args__ = (
         CheckConstraint(
-            "category IN ('forest', 'sport', 'sports', 'relaxation', 'culture', 'nature', 'thermal_baths')",
+            "category IN ('forest', 'sports', 'relaxation', 'culture', 'nature', 'thermal_baths')",
             name="ck_places_category",
         ),
     )

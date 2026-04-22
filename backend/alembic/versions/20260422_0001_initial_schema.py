@@ -31,7 +31,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.CheckConstraint(
-            "category IN ('forest', 'sport', 'sports', 'relaxation', 'culture', 'nature', 'thermal_baths')",
+            "category IN ('forest', 'sports', 'relaxation', 'culture', 'nature', 'thermal_baths')",
             name="ck_places_category",
         ),
         sa.PrimaryKeyConstraint("id"),
