@@ -148,7 +148,8 @@ def get_recommendations(
         place_candidates = nearby_places
     else:
         nearby_ids = {place.id for place in nearby_places}
-        additional_places = [place for place in list_places(db) if place.id not in nearby_ids]
+        all_places, _ = list_places(db)
+        additional_places = [place for place in all_places if place.id not in nearby_ids]
         place_candidates = nearby_places + additional_places
 
     recommended_places: list[RecommendedPlace] = []

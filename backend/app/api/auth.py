@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.rate_limiter import rate_limit_dependency
 from app.core.security import create_access_token, get_current_user
 from app.db.session import get_db
 from app.models import User, UserRole
@@ -14,6 +15,17 @@ from app.services.auth_service import authenticate_user, get_user_by_email, regi
 
 router = APIRouter()
 
+register_rate_limit = rate_limit_dependency(
+    "auth:register",
+    limit=settings.RATE_LIMIT_REGISTER_PER_WINDOW,
+    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
+)
+login_rate_limit = rate_limit_dependency(
+    "auth:login",
+    limit=settings.RATE_LIMIT_LOGIN_PER_WINDOW,
+    window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
+)
+
 
 def _build_token_response(email: str) -> tuple[str, int]:
     expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -22,7 +34,11 @@ def _build_token_response(email: str) -> tuple[str, int]:
 
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> RegisterResponse:
+def register(
+    payload: RegisterRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _rate_limit: None = Depends(register_rate_limit),
+) -> RegisterResponse:
     existing_user = get_user_by_email(db, payload.email)
     if existing_user is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -43,7 +59,11 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+def login(
+    payload: LoginRequest,
+    db: Annotated[Session, Depends(get_db)],
+    _rate_limit: None = Depends(login_rate_limit),
+) -> TokenResponse:
     user = authenticate_user(db, payload.email, payload.password)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")

@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5432/guelma_guide"
     )
+    REDIS_URL: str | None = None
+    REDIS_CACHE_TTL_SECONDS: int = 120
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+    RATE_LIMIT_LOGIN_PER_WINDOW: int = 10
+    RATE_LIMIT_REGISTER_PER_WINDOW: int = 10
+    RATE_LIMIT_AI_PER_WINDOW: int = 30
 
     AI_API_KEY: str | None = None
     MAPS_API_KEY: str | None = None

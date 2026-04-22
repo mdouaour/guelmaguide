@@ -27,6 +27,23 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Backend (FastAPI)
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cd ..
+cp .env.example .env
+uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000 --reload
+```
+
+### Backend dependencies
+
+- PostgreSQL (required)
+- Redis (optional, enables caching and distributed rate limiting)
+
 ## SEO
 
 Sitemap and robots are generated from the App Router metadata files:

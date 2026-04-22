@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base, TimestampedBase
@@ -17,6 +17,7 @@ class Activity(TimestampedBase):
     __tablename__ = "activities"
     __table_args__ = (
         CheckConstraint("max_participants > 0", name="ck_activities_max_participants_positive"),
+        Index("ix_activities_date_time_place_id", "date_time", "place_id"),
     )
 
     title: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
