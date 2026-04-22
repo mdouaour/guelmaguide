@@ -16,6 +16,12 @@ from app.services.auth_service import authenticate_user, get_user_by_email, regi
 router = APIRouter()
 
 
+def _build_token_response(email: str) -> tuple[str, int]:
+    expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = create_access_token(subject=email, expires_delta=expires_delta)
+    return token, int(expires_delta.total_seconds())
+
+
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> RegisterResponse:
     existing_user = get_user_by_email(db, payload.email)
@@ -23,13 +29,12 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
     user = register_user(db, payload.email, payload.password, UserRole.VISITOR)
-    expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    token = create_access_token(subject=user.email, expires_delta=expires_delta)
+    token, expires_in = _build_token_response(user.email)
 
     return RegisterResponse(
         user=UserRead.model_validate(user),
         access_token=token,
-        expires_in=int(expires_delta.total_seconds()),
+        expires_in=expires_in,
     )
 
 
@@ -39,9 +44,8 @@ def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> Tok
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    token = create_access_token(subject=user.email, expires_delta=expires_delta)
-    return TokenResponse(access_token=token, expires_in=int(expires_delta.total_seconds()))
+    token, expires_in = _build_token_response(user.email)
+    return TokenResponse(access_token=token, expires_in=expires_in)
 
 
 @router.get("/me", response_model=UserRead)
