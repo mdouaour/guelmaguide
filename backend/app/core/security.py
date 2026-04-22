@@ -67,6 +67,8 @@ def get_current_user(
 
 
 def require_roles(*roles: UserRole) -> Callable:
+    """Return a FastAPI dependency that allows access only to users in the provided roles."""
+
     def role_dependency(current_user: Annotated[User, Depends(get_current_user)]) -> User:
         if current_user.role not in roles:
             raise HTTPException(

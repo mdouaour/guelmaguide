@@ -8,7 +8,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(
         min_length=8,
         max_length=128,
-        pattern=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).*$",
+        pattern=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,128}$",
         description=(
             "Password must be 8-128 chars and include at least one uppercase letter, "
             "one lowercase letter, one digit, and one special character."
