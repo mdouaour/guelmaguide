@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.place import PlaceCategory
 
@@ -13,6 +13,14 @@ class PlaceBase(BaseModel):
     category: PlaceCategory
     theme: str = Field(min_length=2, max_length=100)
     images: list[str] = Field(default_factory=list)
+
+    @field_validator("name", "description", "theme")
+    @classmethod
+    def validate_not_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Field cannot be blank")
+        return normalized
 
 
 class PlaceCreate(PlaceBase):

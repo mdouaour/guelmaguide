@@ -23,7 +23,14 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Password cannot be blank")
+        return value
 
 
 class TokenResponse(BaseModel):

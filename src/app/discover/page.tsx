@@ -1,109 +1,167 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { getAllLandmarkTags, landmarks, type DiscoveryTag } from '@/lib/landmarks'
-import { useEffect } from 'react'
-import { getText } from '@/lib/i18n'
+import { useEffect, useMemo, useState } from 'react'
+import MapClient from '@/components/MapClient'
+import { getPlaces, type Place } from '@/lib/api'
 import { useLanguage } from '@/context/LanguageContext'
-import { getEnrichedLandmarks } from '@/lib/enrichData'
-import type { Landmark } from '@/lib/landmarks'
+
+const categories = ['all', 'forest', 'culture', 'nature', 'sports', 'relaxation', 'thermal_baths'] as const
+const limit = 12
 
 export default function DiscoverPage() {
   const { lang } = useLanguage()
   const [query, setQuery] = useState('')
-  const [activeTag, setActiveTag] = useState<DiscoveryTag | 'all'>('all')
-  const [landmarkData, setLandmarkData] = useState<Landmark[]>(landmarks)
-  const [isRefreshing, setIsRefreshing] = useState(true)
-  const tags = getAllLandmarkTags()
+  const [theme, setTheme] = useState('')
+  const [category, setCategory] = useState<(typeof categories)[number]>('all')
+  const [page, setPage] = useState(1)
+  const [places, setPlaces] = useState<Place[]>([])
+  const [total, setTotal] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getEnrichedLandmarks(landmarks)
-      .then(setLandmarkData)
-      .finally(() => setIsRefreshing(false))
-  }, [])
+    let isMounted = true
+    const loadPlaces = async () => {
+      setIsLoading(true)
+      setError(null)
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      })
+      if (query.trim()) params.set('keyword', query.trim())
+      if (theme.trim()) params.set('theme', theme.trim())
+      if (category !== 'all') params.set('category', category)
 
-  const normalizedQuery = query.trim().toLowerCase()
-  const filteredLandmarks = landmarkData.filter((landmark) => {
-    const matchesTag = activeTag === 'all' || landmark.tags.includes(activeTag)
-    const name = getText(landmark.name, lang).toLowerCase()
-    const location = getText(landmark.location, lang).toLowerCase()
-    const description = getText(landmark.description, lang).toLowerCase()
-    const matchesQuery =
-      !normalizedQuery ||
-      name.includes(normalizedQuery) ||
-      location.includes(normalizedQuery) ||
-      description.includes(normalizedQuery) ||
-      landmark.tags.some((tag) => tag.includes(normalizedQuery))
+      try {
+        const response = await getPlaces(params)
+        if (!isMounted) return
+        setPlaces(response.results)
+        setTotal(response.total)
+      } catch (err) {
+        if (!isMounted) return
+        setError(err instanceof Error ? err.message : 'Failed to load places')
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
 
-    return matchesTag && matchesQuery
-  })
+    loadPlaces()
+
+    return () => {
+      isMounted = false
+    }
+  }, [category, page, query, theme])
+
+  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const mapMarkers = useMemo(
+    () =>
+      places.map((place) => ({
+        id: String(place.id),
+        title: place.name,
+        description: `${place.category} · ${place.theme}`,
+        coordinates: { lat: place.latitude, lng: place.longitude },
+        mapsUrl: `https://maps.google.com/?q=${place.latitude},${place.longitude}`,
+        detailsUrl: `/place/${place.id}`,
+      })),
+    [places],
+  )
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
       <header>
-        <h1 className="text-2xl font-semibold">{lang === 'ar' ? 'اكتشف الأماكن' : 'Discover Places'}</h1>
-        <p className="mt-1 text-sm text-white/70">{lang === 'ar' ? 'ابحث وصفِّ المعالم حسب الوسوم.' : 'Search and filter landmarks by tags.'}</p>
-        {isRefreshing ? (
-          <p className="mt-1 text-xs text-white/50">{lang === 'ar' ? 'جاري تحديث المحتوى من مصادر عامة...' : 'Refreshing content from public sources...'}</p>
-        ) : null}
+        <h1 className="text-2xl font-semibold text-slate-900">{lang === 'ar' ? 'اكتشف الأماكن' : 'Discover Places'}</h1>
+        <p className="mt-1 text-sm text-slate-600">{lang === 'ar' ? 'بحث مباشر مع تصفية وفهرسة.' : 'Live search with filtering and pagination.'}</p>
       </header>
 
-      <div className="mt-4 grid gap-3">
+      <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-3">
         <input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={lang === 'ar' ? 'ابحث بالاسم أو الطابع أو الموقع أو الوسم' : 'Search by name, vibe, location, or tag'}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-yellow-400/50"
+          onChange={(event) => {
+            setPage(1)
+            setQuery(event.target.value)
+          }}
+          placeholder={lang === 'ar' ? 'بحث بالكلمة المفتاحية' : 'Keyword search'}
+          className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
         />
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setActiveTag('all')}
-            className={`rounded-full px-3 py-1.5 text-xs ${activeTag === 'all' ? 'bg-yellow-500 text-black' : 'border border-white/10 bg-white/5'}`}
-          >
-            {lang === 'ar' ? 'الكل' : 'all'}
-          </button>
-          {tags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setActiveTag(tag)}
-              className={`rounded-full px-3 py-1.5 text-xs ${activeTag === tag ? 'bg-yellow-500 text-black' : 'border border-white/10 bg-white/5'}`}
-            >
-              {tag}
-            </button>
+        <input
+          value={theme}
+          onChange={(event) => {
+            setPage(1)
+            setTheme(event.target.value)
+          }}
+          placeholder={lang === 'ar' ? 'الثيم (nature, relaxation...)' : 'Theme (nature, relaxation...)'}
+          className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+        />
+        <select
+          value={category}
+          onChange={(event) => {
+            setPage(1)
+            setCategory(event.target.value as (typeof categories)[number])
+          }}
+          className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+        >
+          {categories.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredLandmarks.map((landmark) => (
-          <article key={landmark.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-            <img src={landmark.image} alt={getText(landmark.name, lang)} className="h-40 w-full object-cover" />
-            <div className="p-4">
-              <p className="text-xs text-yellow-400">{getText(landmark.vibe, lang)}</p>
-              <h2 className="mt-1 text-lg font-semibold">{getText(landmark.name, lang)}</h2>
-              <p className="mt-1 text-sm text-white/70">{getText(landmark.description, lang)}</p>
-              <p className="mt-2 text-xs text-white/60">
-                {getText(landmark.location, lang)} · {lang === 'ar' ? 'أفضل وقت:' : 'Best:'} {getText(landmark.bestTime, lang)}
-              </p>
-            <div className="mt-3 flex flex-wrap gap-1">
-              {landmark.tags.map((tag) => (
-                <span key={tag} className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/70">#{tag}</span>
-              ))}
-            </div>
-              <Link href={`/place/${landmark.slug}`} className="mt-4 inline-block text-sm text-yellow-400">
-                {lang === 'ar' ? 'فتح المكان ←' : 'Open place →'}
-              </Link>
-            </div>
-          </article>
-        ))}
+      <section className="mt-5 grid gap-6 lg:grid-cols-3">
+        <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:col-span-1">
+          <h2 className="text-sm font-semibold text-emerald-700">{lang === 'ar' ? 'الخريطة' : 'Map'}</h2>
+          <div className="mt-2 h-[420px] overflow-hidden rounded-xl border border-slate-200">
+            <MapClient markers={mapMarkers} zoom={12} />
+          </div>
+        </article>
+
+        <article className="lg:col-span-2">
+          {isLoading ? <p className="text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading places...'}</p> : null}
+          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {places.map((place) => (
+              <article key={place.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs uppercase text-emerald-700">{place.category}</p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-900">{place.name}</h2>
+                <p className="mt-1 text-sm text-slate-600">{place.description}</p>
+                <p className="mt-2 text-xs text-slate-500">{place.theme}</p>
+                <Link href={`/place/${place.id}`} className="mt-3 inline-block text-sm text-emerald-700">
+                  {lang === 'ar' ? 'عرض التفاصيل ←' : 'View details →'}
+                </Link>
+              </article>
+            ))}
+          </div>
+          {places.length === 0 && !isLoading ? (
+            <p className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              {lang === 'ar' ? 'لا توجد نتائج مطابقة.' : 'No places match your filters.'}
+            </p>
+          ) : null}
+        </article>
       </section>
 
-      {filteredLandmarks.length === 0 ? (
-        <p className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-          {lang === 'ar' ? 'لا توجد أماكن مطابقة لهذا الفلتر حالياً.' : 'No places match this filter yet.'}
+      <div className="mt-6 flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+        <p>
+          {lang === 'ar' ? 'الصفحة' : 'Page'} {page} / {totalPages} · {lang === 'ar' ? 'الإجمالي' : 'Total'} {total}
         </p>
-      ) : null}
+        <div className="flex gap-2">
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage((previous) => Math.max(1, previous - 1))}
+            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-50"
+          >
+            {lang === 'ar' ? 'السابق' : 'Prev'}
+          </button>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
+            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-50"
+          >
+            {lang === 'ar' ? 'التالي' : 'Next'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

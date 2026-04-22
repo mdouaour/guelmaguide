@@ -51,16 +51,16 @@ def create_new_activity(
     return _to_activity_read(db, activity)
 
 
-@router.get("", response_model=list[ActivityRead] | PaginatedActivitiesResponse)
+@router.get("", response_model=PaginatedActivitiesResponse)
 def get_activities(
     db: Annotated[Session, Depends(get_db)],
     date_filter: Annotated[date | None, Query(alias="date")] = None,
     place: Annotated[int | None, Query(ge=1)] = None,
     availability: Annotated[bool, Query()] = False,
     category: Annotated[PlaceCategory | None, Query()] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
-) -> list[ActivityRead] | PaginatedActivitiesResponse:
+) -> PaginatedActivitiesResponse:
     cache_key = (
         "activities:list:"
         f"date={date_filter}:place={place}:availability={availability}:"
@@ -68,8 +68,6 @@ def get_activities(
     )
     cached = get_cached_json(cache_key)
     if cached is not None:
-        if page is None:
-            return [ActivityRead.model_validate(item) for item in cached]
         return PaginatedActivitiesResponse.model_validate(cached)
 
     rows, total = list_activities_with_counts(
@@ -82,14 +80,6 @@ def get_activities(
         limit=limit,
     )
     results = [to_activity_read(activity, participants_count) for activity, participants_count in rows]
-    if page is None:
-        set_cached_json(
-            cache_key,
-            [item.model_dump(mode="json") for item in results],
-            settings.REDIS_CACHE_TTL_SECONDS,
-        )
-        return results
-
     response_payload = PaginatedActivitiesResponse(
         total=total, page=page, limit=limit, results=results
     )

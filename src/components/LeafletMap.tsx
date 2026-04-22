@@ -18,6 +18,7 @@ export interface MapMarker {
   description?: string
   coordinates: { lat: number; lng: number }
   mapsUrl?: string
+  detailsUrl?: string
 }
 
 interface LeafletMapProps {
@@ -53,6 +54,14 @@ export default function LeafletMap({ markers, zoom = 13 }: LeafletMapProps) {
                 <br />
                 <a href={marker.mapsUrl} target="_blank" rel="noopener noreferrer">
                   {lang === 'ar' ? 'افتح في الخرائط' : 'Open in Maps'}
+                </a>
+              </>
+            ) : null}
+            {marker.detailsUrl ? (
+              <>
+                <br />
+                <a href={marker.detailsUrl}>
+                  {lang === 'ar' ? 'عرض التفاصيل' : 'View details'}
                 </a>
               </>
             ) : null}

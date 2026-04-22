@@ -72,7 +72,7 @@ def test_activities_availability_filter_and_pagination(client: TestClient, db_se
 
     available = client.get("/api/v1/activities", params={"availability": True})
     assert available.status_code == 200
-    assert available.json() == []
+    assert available.json()["results"] == []
 
     paginated = client.get("/api/v1/activities", params={"page": 1, "limit": 10})
     assert paginated.status_code == 200

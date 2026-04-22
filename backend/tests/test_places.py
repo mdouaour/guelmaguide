@@ -43,7 +43,9 @@ def test_places_filtering_and_pagination(client: TestClient, db_session: Session
 
     filtered = client.get("/api/v1/places", params={"category": "forest", "keyword": "Forest"})
     assert filtered.status_code == 200
-    assert len(filtered.json()) == 1
+    filtered_body = filtered.json()
+    assert filtered_body["total"] == 1
+    assert len(filtered_body["results"]) == 1
 
     paginated = client.get("/api/v1/places", params={"page": 1, "limit": 1})
     assert paginated.status_code == 200

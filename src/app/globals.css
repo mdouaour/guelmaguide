@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0A0A0F;
-  --foreground: #ffffff;
-  --primary: #D4AF37;
-  --accent: #F59E0B;
+  --background: #f5f8f7;
+  --foreground: #0f172a;
+  --primary: #0f766e;
+  --accent: #16a34a;
 }
 
 @theme inline {
@@ -26,28 +26,28 @@ body {
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .glass-gold {
-  background: rgba(212, 175, 55, 0.08);
+  background: rgba(15, 118, 110, 0.08);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  border: 1px solid rgba(15, 118, 110, 0.3);
 }
 
 .gold-gradient {
-  background: linear-gradient(135deg, #D4AF37 0%, #F59E0B 50%, #D4AF37 100%);
+  background: linear-gradient(135deg, #0f766e 0%, #16a34a 50%, #0f766e 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .glow-gold {
-  box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+  box-shadow: 0 0 30px rgba(15, 118, 110, 0.2);
 }
 
 * {
@@ -58,9 +58,9 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0A0A0F;
+  background: #dce5e1;
 }
 ::-webkit-scrollbar-thumb {
-  background: #D4AF37;
+  background: #0f766e;
   border-radius: 3px;
 }

@@ -1,83 +1,204 @@
 'use client'
 
 import Link from 'next/link'
-import { activities } from '@/lib/activities'
+import { useEffect, useMemo, useState } from 'react'
+import { getRecommendations, type RecommendationsResponse } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
-import { getText } from '@/lib/i18n'
 
-const actions = [
-  {
-    title: { en: 'Discover Places', ar: 'اكتشف الأماكن' },
-    description: {
-      en: 'Browse landmarks by vibe and tags to quickly choose where to go next.',
-      ar: 'تصفح المعالم حسب الطابع والوسوم لاختيار وجهتك بسرعة.',
-    },
-    href: '/discover',
-  },
-  {
-    title: { en: 'Activities', ar: 'الأنشطة' },
-    description: {
-      en: 'See what is happening this week and bookmark what you want to try.',
-      ar: 'اطلع على أنشطة هذا الأسبوع واحفظ ما تريد تجربته.',
-    },
-    href: '/activities',
-  },
-  {
-    title: { en: 'AI Guide', ar: 'الدليل الذكي' },
-    description: {
-      en: 'Describe what you want and get structured place and activity suggestions.',
-      ar: 'صف ما تريده واحصل على اقتراحات منظمة للأماكن والأنشطة.',
-    },
-    href: '/ai',
-  },
-]
+const DEFAULT_COORDINATES = { lat: 36.4621, lng: 7.4247 }
 
 export default function HomePage() {
   const { lang } = useLanguage()
-  const happeningThisWeek = activities.slice(0, 4)
+  const { user, token, loginUser, registerUser } = useAuth()
+  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false)
+  const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null)
+  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true)
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchRecommendations = async (lat: number, lng: number) => {
+      const params = new URLSearchParams({ latitude: String(lat), longitude: String(lng) })
+      try {
+        const data = await getRecommendations(params, token ?? undefined)
+        if (isMounted) setRecommendations(data)
+      } catch (error) {
+        if (isMounted) {
+          setRecommendationsError(
+            error instanceof Error
+              ? error.message
+              : lang === 'ar'
+                ? 'تعذر تحميل التوصيات'
+                : 'Failed to load recommendations',
+          )
+        }
+      } finally {
+        if (isMounted) setIsRecommendationsLoading(false)
+      }
+    }
+
+    if (!navigator.geolocation) {
+      fetchRecommendations(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lng)
+      return () => {
+        isMounted = false
+      }
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        fetchRecommendations(position.coords.latitude, position.coords.longitude)
+      },
+      () => {
+        fetchRecommendations(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lng)
+      },
+      { enableHighAccuracy: false, timeout: 2500, maximumAge: 300000 },
+    )
+
+    return () => {
+      isMounted = false
+    }
+  }, [lang, token])
+
+  const placeRecommendations = useMemo(
+    () => recommendations?.recommended_places.slice(0, 3) ?? [],
+    [recommendations],
+  )
+  const activityRecommendations = useMemo(
+    () => recommendations?.recommended_activities.slice(0, 3) ?? [],
+    [recommendations],
+  )
+
+  const onSubmitAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setAuthError(null)
+    setIsAuthSubmitting(true)
+    try {
+      if (mode === 'login') {
+        await loginUser(email, password)
+      } else {
+        await registerUser(email, password)
+      }
+      setPassword('')
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Unexpected error')
+    } finally {
+      setIsAuthSubmitting(false)
+    }
+  }
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-6">
-        <p className="mb-2 text-xs uppercase tracking-wide text-yellow-400">{lang === 'ar' ? 'دليل مدينة ذكي' : 'Smart city guide'}</p>
-        <h1 className="text-3xl font-semibold">
-          {lang === 'ar' ? 'ماذا تريد أن تفعل في قالمة اليوم؟' : 'What do you want to do in Guelma today?'}
+      <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+        <p className="mb-2 text-xs uppercase tracking-wide text-emerald-700">
+          {lang === 'ar' ? 'دليل مدينة ذكي' : 'Smart city guide'}
+        </p>
+        <h1 className="text-3xl font-semibold text-slate-900">
+          {lang === 'ar' ? 'خطط يومك في قالمة بسهولة' : 'Plan your day in Guelma with confidence'}
         </h1>
-        <p className="mt-2 text-sm text-white/70">
+        <p className="mt-2 text-sm text-slate-600">
           {lang === 'ar'
-            ? 'اختر مساراً واحداً واحصل على نتائج مفيدة خلال أقل من نقرتين.'
-            : 'Choose one action and reach useful results in under two clicks.'}
+            ? 'توصيات فورية، أماكن واضحة، وأنشطة قابلة للانضمام من نفس الواجهة.'
+            : 'Instant recommendations, clear place discovery, and activities you can join from one flow.'}
         </p>
       </section>
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        {actions.map((action) => (
-          <Link key={action.href} href={action.href} className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-yellow-400/50">
-            <h2 className="text-lg font-semibold">{getText(action.title, lang)}</h2>
-            <p className="mt-2 text-sm text-white/70">{getText(action.description, lang)}</p>
-            <span className="mt-4 inline-block text-sm text-yellow-400">{lang === 'ar' ? 'افتح ←' : 'Open →'}</span>
-          </Link>
-        ))}
-      </section>
+      {!user ? (
+        <section className="mt-6 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex gap-2 text-sm">
+            <button
+              onClick={() => setMode('login')}
+              className={`rounded-md px-3 py-1.5 ${mode === 'login' ? 'bg-emerald-600 text-white' : 'border border-slate-200 text-slate-700'}`}
+            >
+              {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
+            </button>
+            <button
+              onClick={() => setMode('register')}
+              className={`rounded-md px-3 py-1.5 ${mode === 'register' ? 'bg-emerald-600 text-white' : 'border border-slate-200 text-slate-700'}`}
+            >
+              {lang === 'ar' ? 'إنشاء حساب' : 'Register'}
+            </button>
+          </div>
+          <form onSubmit={onSubmitAuth} className="grid gap-3 sm:grid-cols-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="email@example.com"
+              required
+              className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder={lang === 'ar' ? 'كلمة المرور' : 'Password'}
+              required
+              className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+            />
+            <button
+              type="submit"
+              disabled={isAuthSubmitting}
+              className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {mode === 'login' ? (lang === 'ar' ? 'دخول' : 'Sign in') : lang === 'ar' ? 'تسجيل' : 'Create account'}
+            </button>
+          </form>
+          {authError ? <p className="mt-2 text-sm text-rose-600">{authError}</p> : null}
+        </section>
+      ) : (
+        <section className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+          {lang === 'ar' ? `مرحباً ${user.email}` : `Welcome ${user.email}`}
+        </section>
+      )}
 
       <section className="mt-8">
-        <h2 className="text-xl font-semibold">{lang === 'ar' ? 'فعاليات هذا الأسبوع' : 'Happening This Week'}</h2>
-        <p className="mt-1 text-sm text-white/60">
-          {lang === 'ar' ? 'مختارات أسبوعية سريعة للتخطيط.' : 'Weekly highlights for quick planning.'}
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {happeningThisWeek.map((activity) => (
-            <article key={activity.id} className="overflow-hidden rounded-xl border border-white/10 bg-white/5">
-              <img src={activity.image} alt={getText(activity.title, lang)} className="h-36 w-full object-cover" />
-              <div className="p-4">
-              <p className="text-xs uppercase text-yellow-400">{activity.type}</p>
-                <h3 className="mt-1 font-medium">{getText(activity.title, lang)}</h3>
-              <p className="mt-1 text-sm text-white/70">{activity.date} · {activity.time}</p>
-                <p className="mt-2 text-sm text-white/60">{getText(activity.location, lang)}</p>
+        <h2 className="text-xl font-semibold text-slate-900">{lang === 'ar' ? 'توصيات لك الآن' : 'Recommended for you now'}</h2>
+        {isRecommendationsLoading ? <p className="mt-2 text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p> : null}
+        {recommendationsError ? <p className="mt-2 text-sm text-rose-600">{recommendationsError}</p> : null}
+        {!isRecommendationsLoading && !recommendationsError ? (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-emerald-700">{lang === 'ar' ? 'أفضل الأماكن' : 'Top places'}</h3>
+              <div className="mt-2 space-y-2">
+                {placeRecommendations.map((place) => (
+                  <Link key={place.id} href={`/place/${place.id}`} className="block rounded-xl border border-slate-200 p-3 hover:border-emerald-300">
+                    <p className="font-medium text-slate-900">{place.name}</p>
+                    <p className="text-xs text-slate-600">{place.category} · {place.distance_km}km</p>
+                  </Link>
+                ))}
               </div>
             </article>
-          ))}
-        </div>
+            <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-emerald-700">{lang === 'ar' ? 'أنشطة مناسبة' : 'Suggested activities'}</h3>
+              <div className="mt-2 space-y-2">
+                {activityRecommendations.map((activity) => (
+                  <div key={activity.id} className="rounded-xl border border-slate-200 p-3">
+                    <p className="font-medium text-slate-900">{activity.title}</p>
+                    <p className="text-xs text-slate-600">{new Date(activity.date_time).toLocaleString()}</p>
+                    <p className="text-xs text-slate-600">{activity.place_name}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="mt-8 grid gap-3 sm:grid-cols-3">
+        <Link href="/discover" className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-900 shadow-sm hover:border-emerald-300">
+          {lang === 'ar' ? '1) استكشف الأماكن' : '1) Explore places'}
+        </Link>
+        <Link href="/activities" className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-900 shadow-sm hover:border-emerald-300">
+          {lang === 'ar' ? '2) شاهد الأنشطة' : '2) View activities'}
+        </Link>
+        <Link href="/ai" className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-900 shadow-sm hover:border-emerald-300">
+          {lang === 'ar' ? '3) تخصيص عبر الذكاء الاصطناعي' : '3) Personalize with AI'}
+        </Link>
       </section>
     </div>
   )
