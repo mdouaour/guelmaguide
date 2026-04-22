@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
 from app.api.auth import router as auth_router
+from app.api.places import router as places_router
 from app.api.routes.activities import router as activities_router
-from app.api.routes.places import router as places_router
 from app.api.routes.users import router as users_router
 
 api_router = APIRouter()
