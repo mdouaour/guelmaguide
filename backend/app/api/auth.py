@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import create_access_token, get_current_user
 from app.db.session import get_db
+from app.models import UserRole
 from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, RegisterResponse, TokenResponse
 from app.schemas.user import UserRead
@@ -21,7 +22,7 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
     if existing_user is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
-    user = register_user(db, payload.email, payload.password, payload.role)
+    user = register_user(db, payload.email, payload.password, UserRole.VISITOR)
     expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(subject=user.email, expires_delta=expires_delta)
 

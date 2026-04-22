@@ -1,4 +1,5 @@
 from functools import lru_cache
+from secrets import token_urlsafe
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,7 +11,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Guelma Guide API"
     PROJECT_VERSION: str = "0.1.0"
     API_V1_PREFIX: str = "/api/v1"
-    JWT_SECRET_KEY: str = Field(default="change-me-in-production")
+    JWT_SECRET_KEY: str = Field(default_factory=lambda: token_urlsafe(48), min_length=32)
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 

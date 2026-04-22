@@ -1,17 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
-from app.models.user import UserRole
 from app.schemas.user import UserRead
 
 
 class RegisterRequest(BaseModel):
-    email: str
-    password: str
-    role: UserRole = UserRole.VISITOR
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128, pattern=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$")
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 
