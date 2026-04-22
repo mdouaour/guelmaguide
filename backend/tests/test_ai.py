@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models import User, UserRole
 
 
-def _register_login(client: TestClient, email: str) -> str:
+def _register_and_login(client: TestClient, email: str) -> str:
     client.post("/api/v1/auth/register", json={"email": email, "password": "Password1!"})
     login = client.post("/api/v1/auth/login", json={"email": email, "password": "Password1!"})
     return login.json()["access_token"]
@@ -20,9 +20,9 @@ def _set_organizer(db_session: Session, email: str) -> None:
 
 def test_ai_recommendations_returns_places_and_activities(client: TestClient, db_session: Session) -> None:
     organizer_email = "ai-org@example.com"
-    organizer_token = _register_login(client, organizer_email)
+    _register_and_login(client, organizer_email)
     _set_organizer(db_session, organizer_email)
-    organizer_token = _register_login(client, organizer_email)
+    organizer_token = _register_and_login(client, organizer_email)
 
     place_response = client.post(
         "/api/v1/places",

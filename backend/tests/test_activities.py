@@ -38,7 +38,7 @@ def _create_place(client: TestClient, organizer_token: str) -> int:
 
 def test_activities_availability_filter_and_pagination(client: TestClient, db_session: Session) -> None:
     organizer_email = "organizer-act@example.com"
-    organizer_token = _register_and_login(client, organizer_email)
+    _register_and_login(client, organizer_email)
     _set_role(db_session, organizer_email, UserRole.ORGANIZER)
     organizer_token = _register_and_login(client, organizer_email)
     place_id = _create_place(client, organizer_token)
@@ -76,7 +76,7 @@ def test_activities_availability_filter_and_pagination(client: TestClient, db_se
 
 def test_join_activity_when_full_returns_409(client: TestClient, db_session: Session) -> None:
     organizer_email = "organizer-full@example.com"
-    organizer_token = _register_and_login(client, organizer_email)
+    _register_and_login(client, organizer_email)
     _set_role(db_session, organizer_email, UserRole.ORGANIZER)
     organizer_token = _register_and_login(client, organizer_email)
     place_id = _create_place(client, organizer_token)

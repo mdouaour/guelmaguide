@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.models import User, UserRole
 
 
-def _create_organizer_token(client: TestClient, db_session: Session) -> str:
+def _setup_organizer_and_get_token(client: TestClient, db_session: Session) -> str:
     email = "organizer@example.com"
     password = "Password1!"
     register_response = client.post(
@@ -37,7 +37,7 @@ def _create_place(client: TestClient, token: str, *, name: str, category: str) -
 
 
 def test_places_filtering_and_pagination(client: TestClient, db_session: Session) -> None:
-    token = _create_organizer_token(client, db_session)
+    token = _setup_organizer_and_get_token(client, db_session)
     _create_place(client, token, name="Forest Park", category="forest")
     _create_place(client, token, name="Culture House", category="culture")
 
