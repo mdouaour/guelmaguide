@@ -1,4 +1,4 @@
-from math import asin, cos, radians, sin, sqrt
+from math import asin, cos, degrees, radians, sin, sqrt
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -7,6 +7,7 @@ from app.models.place import Place, PlaceCategory
 from app.schemas.place import PlaceCreate
 
 EARTH_RADIUS_KM = 6371.0
+MIN_COS_LATITUDE = 1e-6
 
 
 def list_places(db: Session) -> list[Place]:
@@ -33,6 +34,8 @@ def create_place(db: Session, payload: PlaceCreate) -> Place:
 def calculate_distance_km(
     latitude: float, longitude: float, target_latitude: float, target_longitude: float
 ) -> float:
+    """Calculate great-circle distance in kilometers using the haversine formula."""
+
     lat1 = radians(latitude)
     lon1 = radians(longitude)
     lat2 = radians(target_latitude)
@@ -40,15 +43,33 @@ def calculate_distance_km(
 
     dlat = lat2 - lat1
     dlon = lon2 - lon1
-    haversine = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    return 2 * EARTH_RADIUS_KM * asin(sqrt(haversine))
+    haversine_a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    return 2 * EARTH_RADIUS_KM * asin(sqrt(haversine_a))
 
 
 def list_nearby_places(db: Session, latitude: float, longitude: float, radius_km: float) -> list[Place]:
-    all_places = list_places(db)
+    """Return places inside radius_km using a bounding box then precise haversine filtering.
+
+    Near poles, longitude bounds are expanded to the full range to avoid unstable cosine scaling.
+    """
+
+    latitude_delta = degrees(radius_km / EARTH_RADIUS_KM)
+    if abs(latitude) >= 89.9:
+        longitude_min, longitude_max = -180.0, 180.0
+    else:
+        cos_latitude = max(cos(radians(latitude)), MIN_COS_LATITUDE)
+        longitude_delta = degrees(radius_km / (EARTH_RADIUS_KM * cos_latitude))
+        longitude_min = longitude - longitude_delta
+        longitude_max = longitude + longitude_delta
+
+    candidate_statement = select(Place).where(
+        Place.latitude.between(latitude - latitude_delta, latitude + latitude_delta),
+        Place.longitude.between(longitude_min, longitude_max),
+    )
+    candidate_places = list(db.scalars(candidate_statement))
     filtered_places: list[tuple[float, Place]] = []
 
-    for place in all_places:
+    for place in candidate_places:
         distance = calculate_distance_km(latitude, longitude, place.latitude, place.longitude)
         if distance <= radius_km:
             filtered_places.append((distance, place))

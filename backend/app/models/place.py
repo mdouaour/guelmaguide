@@ -1,6 +1,6 @@
 from enum import Enum
 
-from sqlalchemy import JSON, Float, String, Text
+from sqlalchemy import JSON, CheckConstraint, Float, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base_class import TimestampedBase
@@ -15,6 +15,12 @@ class PlaceCategory(str, Enum):
 
 class Place(TimestampedBase):
     __tablename__ = "places"
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('forest', 'sport', 'relaxation', 'culture')",
+            name="ck_places_category",
+        ),
+    )
 
     name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -22,4 +28,4 @@ class Place(TimestampedBase):
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     category: Mapped[PlaceCategory] = mapped_column(String(32), index=True, nullable=False)
     theme: Mapped[str] = mapped_column(String(100), nullable=False)
-    images: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    images: Mapped[list[str]] = mapped_column(JSON, default=lambda: [], nullable=False)

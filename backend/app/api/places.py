@@ -37,7 +37,7 @@ def get_places_by_category(
 def get_nearby_places(
     latitude: Annotated[float, Query(ge=-90, le=90)],
     longitude: Annotated[float, Query(ge=-180, le=180)],
-    radius: Annotated[float, Query(gt=0)],
+    radius: Annotated[float, Query(gt=0, le=1000)],
     db: Annotated[Session, Depends(get_db)],
 ) -> list[PlaceRead]:
     places = list_nearby_places(db, latitude=latitude, longitude=longitude, radius_km=radius)
@@ -56,8 +56,7 @@ def get_place(place_id: int, db: Annotated[Session, Depends(get_db)]) -> PlaceRe
 def create_new_place(
     payload: PlaceCreate,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ORGANIZER))],
+    _current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ORGANIZER))],
 ) -> PlaceRead:
-    _ = current_user
     place = create_place(db, payload)
     return PlaceRead.model_validate(place)
