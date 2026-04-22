@@ -1,8 +1,11 @@
+from datetime import UTC, date, datetime, time, timedelta
+
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Activity, ActivityRegistration, Place
+from app.models.place import PlaceCategory
 from app.schemas.activity import ActivityCreate
 
 
@@ -29,6 +32,53 @@ class ActivityFullError(ActivityError):
 def list_activities(db: Session) -> list[Activity]:
     statement = select(Activity).order_by(Activity.date_time.asc())
     return list(db.scalars(statement))
+
+
+def list_activities_with_counts(
+    db: Session,
+    *,
+    date_filter: date | None = None,
+    place_id: int | None = None,
+    availability_only: bool = False,
+    category: PlaceCategory | None = None,
+    page: int | None = None,
+    limit: int = 20,
+) -> tuple[list[tuple[Activity, int]], int]:
+    registrations_subquery = (
+        select(
+            ActivityRegistration.activity_id.label("activity_id"),
+            func.count(ActivityRegistration.user_id).label("participants_count"),
+        )
+        .group_by(ActivityRegistration.activity_id)
+        .subquery()
+    )
+
+    participants_count = func.coalesce(registrations_subquery.c.participants_count, 0)
+    statement = (
+        select(Activity, participants_count.label("participants_count"))
+        .join(Place, Place.id == Activity.place_id)
+        .outerjoin(registrations_subquery, registrations_subquery.c.activity_id == Activity.id)
+    )
+
+    if date_filter is not None:
+        day_start = datetime.combine(date_filter, time.min, tzinfo=UTC)
+        day_end = day_start + timedelta(days=1)
+        statement = statement.where(Activity.date_time >= day_start, Activity.date_time < day_end)
+    if place_id is not None:
+        statement = statement.where(Activity.place_id == place_id)
+    if category is not None:
+        statement = statement.where(Place.category == category)
+    if availability_only:
+        statement = statement.where(participants_count < Activity.max_participants)
+
+    statement = statement.order_by(Activity.date_time.asc())
+    total = int(db.scalar(select(func.count()).select_from(statement.subquery())) or 0)
+
+    if page is not None:
+        statement = statement.offset((page - 1) * limit).limit(limit)
+
+    rows = db.execute(statement).all()
+    return [(activity, int(count)) for activity, count in rows], total
 
 
 def get_activity_by_id(db: Session, activity_id: int) -> Activity | None:

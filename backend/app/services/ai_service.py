@@ -69,6 +69,13 @@ def _activity_time_of_day(value: datetime) -> TimeOfDay:
     return TimeOfDay.EVENING
 
 
+def _ensure_utc_aware(value: datetime) -> datetime:
+    """Normalize datetimes to UTC; naive datetimes are treated as UTC by convention."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def _user_history_profile(db: Session, user_id: int) -> tuple[set[int], Counter[str]]:
     joined_ids_statement = select(ActivityRegistration.activity_id).where(
         ActivityRegistration.user_id == user_id
@@ -148,7 +155,8 @@ def get_recommendations(
         place_candidates = nearby_places
     else:
         nearby_ids = {place.id for place in nearby_places}
-        additional_places = [place for place in list_places(db) if place.id not in nearby_ids]
+        all_places, _ = list_places(db)
+        additional_places = [place for place in all_places if place.id not in nearby_ids]
         place_candidates = nearby_places + additional_places
 
     recommended_places: list[RecommendedPlace] = []
@@ -196,7 +204,9 @@ def get_recommendations(
 
         normalized_place_category = _normalize_category(place.category)
         distance_km = calculate_distance_km(latitude, longitude, place.latitude, place.longitude)
-        starts_in_hours = max(0.0, (activity.date_time - now).total_seconds() / SECONDS_PER_HOUR)
+        starts_in_hours = max(
+            0.0, (_ensure_utc_aware(activity.date_time) - now).total_seconds() / SECONDS_PER_HOUR
+        )
 
         score = max(
             0.0, ACTIVITY_BASE_DISTANCE_SCORE - (distance_km * ACTIVITY_DISTANCE_PENALTY_PER_KM)

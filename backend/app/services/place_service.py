@@ -1,6 +1,6 @@
 from math import asin, cos, degrees, radians, sin, sqrt
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.place import Place, PlaceCategory
@@ -10,8 +10,76 @@ EARTH_RADIUS_KM = 6371.0
 MIN_COS_LATITUDE = 1e-6
 
 
-def list_places(db: Session) -> list[Place]:
-    return list(db.scalars(select(Place).order_by(Place.created_at.desc())))
+def list_places(
+    db: Session,
+    *,
+    category: PlaceCategory | None = None,
+    keyword: str | None = None,
+    theme: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    distance_km: float | None = None,
+    page: int | None = None,
+    limit: int = 20,
+) -> tuple[list[Place], int]:
+    filters = []
+    if category is not None:
+        filters.append(Place.category == category)
+    if theme:
+        filters.append(Place.theme.ilike(f"%{theme.strip()}%"))
+    if keyword:
+        normalized_keyword = keyword.strip()
+        if normalized_keyword:
+            filters.append(
+                or_(
+                    Place.name.ilike(f"%{normalized_keyword}%"),
+                    Place.description.ilike(f"%{normalized_keyword}%"),
+                )
+            )
+
+    if distance_km is not None:
+        if latitude is None or longitude is None:
+            raise ValueError("latitude and longitude are required when distance filter is used")
+        latitude_delta = degrees(distance_km / EARTH_RADIUS_KM)
+        if abs(latitude) >= 89.9:
+            longitude_min, longitude_max = -180.0, 180.0
+        else:
+            cos_latitude = max(cos(radians(latitude)), MIN_COS_LATITUDE)
+            longitude_delta = degrees(distance_km / (EARTH_RADIUS_KM * cos_latitude))
+            longitude_min = longitude - longitude_delta
+            longitude_max = longitude + longitude_delta
+
+        filters.extend(
+            [
+                Place.latitude.between(latitude - latitude_delta, latitude + latitude_delta),
+                Place.longitude.between(longitude_min, longitude_max),
+            ]
+        )
+        statement = select(Place).where(*filters)
+        candidates = list(db.scalars(statement))
+        filtered_places: list[tuple[float, Place]] = []
+        for place in candidates:
+            exact_distance = calculate_distance_km(latitude, longitude, place.latitude, place.longitude)
+            if exact_distance <= distance_km:
+                filtered_places.append((exact_distance, place))
+        # Tie-break by creation timestamp to keep deterministic order for equal distances.
+        filtered_places.sort(
+            key=lambda distance_and_place: (distance_and_place[0], distance_and_place[1].created_at)
+        )
+        all_places = [place for _, place in filtered_places]
+        total = len(all_places)
+        if page is None:
+            return all_places, total
+        start = (page - 1) * limit
+        end = start + limit
+        return all_places[start:end], total
+
+    base_statement = select(Place).where(*filters)
+    total = int(db.scalar(select(func.count()).select_from(base_statement.subquery())) or 0)
+    statement = base_statement.order_by(Place.created_at.desc())
+    if page is not None:
+        statement = statement.offset((page - 1) * limit).limit(limit)
+    return list(db.scalars(statement)), total
 
 
 def get_place_by_id(db: Session, place_id: int) -> Place | None:
@@ -19,8 +87,8 @@ def get_place_by_id(db: Session, place_id: int) -> Place | None:
 
 
 def list_places_by_category(db: Session, category: PlaceCategory) -> list[Place]:
-    statement = select(Place).where(Place.category == category).order_by(Place.created_at.desc())
-    return list(db.scalars(statement))
+    places, _ = list_places(db, category=category)
+    return places
 
 
 def create_place(db: Session, payload: PlaceCreate) -> Place:

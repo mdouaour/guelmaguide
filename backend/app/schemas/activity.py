@@ -8,8 +8,8 @@ if TYPE_CHECKING:
 
 
 class ActivityBase(BaseModel):
-    title: str
-    description: str
+    title: str = Field(min_length=3, max_length=255)
+    description: str = Field(min_length=10, max_length=4000)
     place_id: int
     date_time: datetime
     max_participants: int = Field(gt=0)
@@ -35,6 +35,13 @@ class ActivityRegistrationRead(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedActivitiesResponse(BaseModel):
+    total: int = Field(ge=0)
+    page: int = Field(ge=1)
+    limit: int = Field(ge=1, le=100)
+    results: list[ActivityRead]
 
 
 def to_activity_read(activity: "Activity", participants_count: int) -> ActivityRead:
