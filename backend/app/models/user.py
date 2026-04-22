@@ -12,11 +12,14 @@ class UserRole(str, Enum):
     ADMIN = "admin"
 
 
+MAX_ROLE_LENGTH = 20
+
+
 class User(TimestampedBase):
     __tablename__ = "users"
 
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(
-        String(20), default=UserRole.VISITOR, nullable=False
+        String(MAX_ROLE_LENGTH), default=UserRole.VISITOR, nullable=False
     )
