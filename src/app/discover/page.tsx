@@ -22,29 +22,31 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     let isMounted = true
-    setIsLoading(true)
-    setError(null)
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: String(limit),
-    })
-    if (query.trim()) params.set('keyword', query.trim())
-    if (theme.trim()) params.set('theme', theme.trim())
-    if (category !== 'all') params.set('category', category)
+    const loadPlaces = async () => {
+      setIsLoading(true)
+      setError(null)
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      })
+      if (query.trim()) params.set('keyword', query.trim())
+      if (theme.trim()) params.set('theme', theme.trim())
+      if (category !== 'all') params.set('category', category)
 
-    getPlaces(params)
-      .then((response) => {
+      try {
+        const response = await getPlaces(params)
         if (!isMounted) return
         setPlaces(response.results)
         setTotal(response.total)
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!isMounted) return
         setError(err instanceof Error ? err.message : 'Failed to load places')
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) setIsLoading(false)
-      })
+      }
+    }
+
+    loadPlaces()
 
     return () => {
       isMounted = false

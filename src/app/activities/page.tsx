@@ -22,26 +22,28 @@ export default function ActivitiesPage() {
 
   useEffect(() => {
     let isMounted = true
-    setIsLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
-    if (dateFilter) params.set('date', dateFilter)
-    if (placeFilter.trim()) params.set('place', placeFilter.trim())
-    if (availabilityOnly) params.set('availability', 'true')
+    const loadActivities = async () => {
+      setIsLoading(true)
+      setError(null)
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+      if (dateFilter) params.set('date', dateFilter)
+      if (placeFilter.trim()) params.set('place', placeFilter.trim())
+      if (availabilityOnly) params.set('availability', 'true')
 
-    getActivities(params)
-      .then((response) => {
+      try {
+        const response = await getActivities(params)
         if (!isMounted) return
         setActivities(response.results)
         setTotal(response.total)
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!isMounted) return
         setError(err instanceof Error ? err.message : 'Failed to load activities')
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) setIsLoading(false)
-      })
+      }
+    }
+
+    loadActivities()
 
     return () => {
       isMounted = false

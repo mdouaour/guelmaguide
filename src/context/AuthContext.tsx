@@ -24,13 +24,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const storedToken = window.localStorage.getItem(TOKEN_STORAGE_KEY)
     if (!storedToken) {
-      setIsAuthLoading(false)
+      Promise.resolve().then(() => setIsAuthLoading(false))
       return
     }
 
-    setToken(storedToken)
     getMe(storedToken)
-      .then(setUser)
+      .then((me) => {
+        setToken(storedToken)
+        setUser(me)
+      })
       .catch(() => {
         window.localStorage.removeItem(TOKEN_STORAGE_KEY)
         setToken(null)
