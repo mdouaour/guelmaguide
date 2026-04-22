@@ -15,24 +15,27 @@ if TYPE_CHECKING:
 class PlaceCategory(str, Enum):
     FOREST = "forest"
     SPORT = "sport"
+    SPORTS = "sports"
     RELAXATION = "relaxation"
     CULTURE = "culture"
+    NATURE = "nature"
+    THERMAL_BATHS = "thermal_baths"
 
 
 class Place(TimestampedBase):
     __tablename__ = "places"
     __table_args__ = (
         CheckConstraint(
-            "category IN ('forest', 'sport', 'relaxation', 'culture')",
+            "category IN ('forest', 'sport', 'sports', 'relaxation', 'culture', 'nature', 'thermal_baths')",
             name="ck_places_category",
         ),
     )
 
     name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    latitude: Mapped[float] = mapped_column(Float, nullable=False)
-    longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    latitude: Mapped[float] = mapped_column(Float, index=True, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, index=True, nullable=False)
     category: Mapped[PlaceCategory] = mapped_column(String(32), index=True, nullable=False)
-    theme: Mapped[str] = mapped_column(String(100), nullable=False)
+    theme: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     images: Mapped[list[str]] = mapped_column(JSON, default=lambda: [], nullable=False)
     activities: Mapped[list["Activity"]] = relationship(back_populates="place")
