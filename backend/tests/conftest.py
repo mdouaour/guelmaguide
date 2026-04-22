@@ -1,10 +1,13 @@
 import os
 from pathlib import Path
+import sys
+import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
 
-TEST_DB_FILE = Path(__file__).parent / "test.db"
+TEST_DB_FILE = Path(tempfile.gettempdir()) / "guelmaguide_test.db"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-with-minimum-32-chars")
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_FILE}"
 
