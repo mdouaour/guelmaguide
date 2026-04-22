@@ -46,6 +46,20 @@ def get_activity_participants_count(db: Session, activity_id: int) -> int:
     )
 
 
+def get_activity_participants_counts(db: Session, activity_ids: list[int]) -> dict[int, int]:
+    if not activity_ids:
+        return {}
+    statement = (
+        select(
+            ActivityRegistration.activity_id,
+            func.count(ActivityRegistration.user_id),
+        )
+        .where(ActivityRegistration.activity_id.in_(activity_ids))
+        .group_by(ActivityRegistration.activity_id)
+    )
+    return {int(activity_id): int(total) for activity_id, total in db.execute(statement).all()}
+
+
 def create_activity(db: Session, payload: ActivityCreate, organizer_id: int) -> Activity:
     place = db.get(Place, payload.place_id)
     if place is None:
@@ -59,7 +73,7 @@ def create_activity(db: Session, payload: ActivityCreate, organizer_id: int) -> 
 
 
 def join_activity(db: Session, activity_id: int, user_id: int) -> ActivityRegistration:
-    activity = get_activity_by_id(db, activity_id)
+    activity = db.scalar(select(Activity).where(Activity.id == activity_id).with_for_update())
     if activity is None:
         raise ActivityNotFoundError("Activity not found")
 

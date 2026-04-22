@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.security import get_current_user, require_roles
 from app.db.session import get_db
 from app.models import Activity, User, UserRole
-from app.schemas.activity import ActivityCreate, ActivityRead, ActivityRegistrationRead
+from app.schemas.activity import ActivityCreate, ActivityRead, ActivityRegistrationRead, to_activity_read
 from app.services.activity_service import (
     ActivityFullError,
     ActivityNotFoundError,
@@ -15,6 +15,7 @@ from app.services.activity_service import (
     create_activity,
     get_activity_by_id,
     get_activity_participants_count,
+    get_activity_participants_counts,
     join_activity,
     leave_activity,
     list_activities,
@@ -24,18 +25,7 @@ router = APIRouter()
 
 
 def _to_activity_read(db: Session, activity: Activity) -> ActivityRead:
-    return ActivityRead(
-        id=activity.id,
-        title=activity.title,
-        description=activity.description,
-        place_id=activity.place_id,
-        organizer_id=activity.organizer_id,
-        date_time=activity.date_time,
-        max_participants=activity.max_participants,
-        participants_count=get_activity_participants_count(db, activity.id),
-        created_at=activity.created_at,
-        updated_at=activity.updated_at,
-    )
+    return to_activity_read(activity, get_activity_participants_count(db, activity.id))
 
 
 @router.post("", response_model=ActivityRead, status_code=status.HTTP_201_CREATED)
@@ -54,7 +44,11 @@ def create_new_activity(
 @router.get("", response_model=list[ActivityRead])
 def get_activities(db: Annotated[Session, Depends(get_db)]) -> list[ActivityRead]:
     activities = list_activities(db)
-    return [_to_activity_read(db, activity) for activity in activities]
+    participant_counts = get_activity_participants_counts(db, [activity.id for activity in activities])
+    return [
+        to_activity_read(activity, participant_counts.get(activity.id, 0))
+        for activity in activities
+    ]
 
 
 @router.get("/{activity_id}", response_model=ActivityRead)

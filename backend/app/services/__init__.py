@@ -2,6 +2,7 @@ from app.services.auth_service import authenticate_user, get_user_by_email, regi
 from app.services.activity_service import (
     create_activity,
     get_activity_by_id,
+    get_activity_participants_counts,
     join_activity,
     leave_activity,
     list_activities,
@@ -14,6 +15,7 @@ __all__ = [
     "authenticate_user",
     "create_activity",
     "get_activity_by_id",
+    "get_activity_participants_counts",
     "join_activity",
     "leave_activity",
     "list_activities",
