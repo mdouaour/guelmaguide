@@ -69,7 +69,7 @@ def _activity_time_of_day(value: datetime) -> TimeOfDay:
     return TimeOfDay.EVENING
 
 
-def _to_utc(value: datetime) -> datetime:
+def _ensure_utc_aware(value: datetime) -> datetime:
     """Normalize datetimes to UTC; naive datetimes are treated as UTC by convention."""
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
@@ -205,7 +205,7 @@ def get_recommendations(
         normalized_place_category = _normalize_category(place.category)
         distance_km = calculate_distance_km(latitude, longitude, place.latitude, place.longitude)
         starts_in_hours = max(
-            0.0, (_to_utc(activity.date_time) - now).total_seconds() / SECONDS_PER_HOUR
+            0.0, (_ensure_utc_aware(activity.date_time) - now).total_seconds() / SECONDS_PER_HOUR
         )
 
         score = max(

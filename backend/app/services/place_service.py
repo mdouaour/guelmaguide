@@ -63,7 +63,9 @@ def list_places(
             if exact_distance <= distance_km:
                 filtered_places.append((exact_distance, place))
         # Tie-break by creation timestamp to keep deterministic order for equal distances.
-        filtered_places.sort(key=lambda item: (item[0], item[1].created_at))
+        filtered_places.sort(
+            key=lambda distance_and_place: (distance_and_place[0], distance_and_place[1].created_at)
+        )
         all_places = [place for _, place in filtered_places]
         total = len(all_places)
         if page is None:

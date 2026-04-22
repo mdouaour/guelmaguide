@@ -11,6 +11,8 @@ from app.core.cache import get_redis_client
 
 _memory_buckets: dict[str, tuple[int, float]] = {}
 _memory_lock = Lock()
+_cleanup_counter = 0
+_cleanup_interval = 100
 
 
 def _get_identifier(request: Request) -> str:
@@ -18,11 +20,19 @@ def _get_identifier(request: Request) -> str:
 
 
 def _enforce_memory_limit(key: str, *, limit: int, window_seconds: int) -> None:
+    global _cleanup_counter
     now = time()
     with _memory_lock:
-        expired_keys = [bucket_key for bucket_key, (_, expires_at) in _memory_buckets.items() if now >= expires_at]
-        for bucket_key in expired_keys:
-            _memory_buckets.pop(bucket_key, None)
+        _cleanup_counter += 1
+        if _cleanup_counter >= _cleanup_interval:
+            _cleanup_counter = 0
+            expired_keys = [
+                bucket_key
+                for bucket_key, (_, expires_at) in _memory_buckets.items()
+                if now >= expires_at
+            ]
+            for bucket_key in expired_keys:
+                _memory_buckets.pop(bucket_key, None)
         count, expires_at = _memory_buckets.get(key, (0, now + window_seconds))
         if now >= expires_at:
             count, expires_at = 0, now + window_seconds
