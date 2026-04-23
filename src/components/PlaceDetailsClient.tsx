@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import FadeInSection from '@/components/FadeInSection'
 import MapClient from '@/components/MapClient'
 import {
   getActivities,
@@ -13,6 +14,7 @@ import {
   type Place,
 } from '@/lib/api'
 import { useLanguage } from '@/context/LanguageContext'
+import { firstImageOrCategory } from '@/lib/visuals'
 
 interface PlaceDetailsClientProps {
   placeIdentifier: string
@@ -76,6 +78,8 @@ export default function PlaceDetailsClient({ placeIdentifier }: PlaceDetailsClie
             {
               id: String(place.id),
               title: place.name,
+              imageUrl: firstImageOrCategory(place.images, place.category),
+              category: place.category,
               description: place.theme,
               coordinates: { lat: place.latitude, lng: place.longitude },
               mapsUrl: `https://maps.google.com/?q=${place.latitude},${place.longitude}`,
@@ -106,8 +110,11 @@ export default function PlaceDetailsClient({ placeIdentifier }: PlaceDetailsClie
         {lang === 'ar' ? '← العودة إلى الاكتشاف' : '← Back to discover'}
       </Link>
 
-      <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs uppercase text-emerald-700">{lang === 'ar' ? 'تفاصيل المكان' : 'Place details'}</p>
+      <FadeInSection>
+      <section className="tour-card mt-4 overflow-hidden">
+        <img src={firstImageOrCategory(place.images, place.category)} alt={place.name} className="h-56 w-full object-cover" />
+        <div className="p-6">
+        <p className="text-xs uppercase text-[#2E7D32]">{lang === 'ar' ? 'تفاصيل المكان' : 'Place details'}</p>
         <h1 className="mt-1 text-3xl font-semibold text-slate-900">{place.name}</h1>
         <p className="mt-2 text-sm text-slate-600">{place.description}</p>
         <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-3">
@@ -121,22 +128,24 @@ export default function PlaceDetailsClient({ placeIdentifier }: PlaceDetailsClie
             <span className="font-medium text-slate-900">{lang === 'ar' ? 'الإحداثيات:' : 'Coordinates:'}</span> {place.latitude}, {place.longitude}
           </p>
         </div>
+        </div>
       </section>
+      </FadeInSection>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-3">
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+        <article className="tour-card p-4 lg:col-span-2">
           <h2 className="text-lg font-semibold text-slate-900">{lang === 'ar' ? 'الخريطة' : 'Map'}</h2>
-          <div className="mt-3 h-[320px] overflow-hidden rounded-xl border border-slate-200">
+          <div className="mt-3 h-[320px] overflow-hidden rounded-xl border border-emerald-100">
             <MapClient markers={markers} zoom={14} />
           </div>
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="tour-card p-4">
           <h2 className="text-lg font-semibold text-slate-900">{lang === 'ar' ? 'أنشطة مرتبطة' : 'Related activities'}</h2>
           <div className="mt-3 space-y-3">
             {relatedActivities.length > 0 ? (
               relatedActivities.map((activity) => (
-                <div key={activity.id} className="rounded-xl border border-slate-200 p-3">
+                <div key={activity.id} className="rounded-xl border border-emerald-100 bg-white p-3">
                   <h3 className="text-sm font-semibold text-slate-900">{activity.title}</h3>
                   <p className="mt-1 text-xs text-slate-500">{new Date(activity.date_time).toLocaleString()}</p>
                   <p className="mt-1 text-xs text-slate-600">
@@ -145,12 +154,12 @@ export default function PlaceDetailsClient({ placeIdentifier }: PlaceDetailsClie
                 </div>
               ))
             ) : (
-              <p className="rounded-xl border border-slate-200 p-3 text-sm text-slate-600">
-                {lang === 'ar' ? 'لا توجد أنشطة متاحة حالياً.' : 'No available activities at this place yet.'}
-              </p>
+               <p className="rounded-xl border border-emerald-100 p-3 text-sm text-slate-600">
+                 {lang === 'ar' ? 'لا توجد أنشطة متاحة حالياً.' : 'No available activities at this place yet.'}
+               </p>
             )}
           </div>
-          <Link href="/activities" className="mt-4 inline-block text-sm text-emerald-700">
+          <Link href="/activities" className="mt-4 inline-block text-sm font-medium text-[#2E7D32]">
             {lang === 'ar' ? 'عرض جميع الأنشطة ←' : 'See all activities →'}
           </Link>
         </article>
