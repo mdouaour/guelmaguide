@@ -3,7 +3,15 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import MapClient from '@/components/MapClient'
-import { getActivities, getPlace, getPlaces, type Activity, type Place } from '@/lib/api'
+import {
+  getActivities,
+  getPlace,
+  getPlaces,
+  identifierToPlaceKeyword,
+  resolvePlaceIdFromIdentifier,
+  type Activity,
+  type Place,
+} from '@/lib/api'
 import { useLanguage } from '@/context/LanguageContext'
 
 interface PlaceDetailsClientProps {
@@ -19,17 +27,21 @@ export default function PlaceDetailsClient({ placeIdentifier }: PlaceDetailsClie
 
   useEffect(() => {
     let isMounted = true
-    const resolvedId = Number(placeIdentifier)
+    const resolvedId = resolvePlaceIdFromIdentifier(placeIdentifier)
 
     const load = async () => {
       setIsLoading(true)
       setError(null)
       try {
         let selectedPlace: Place
-        if (Number.isInteger(resolvedId) && resolvedId > 0) {
+        if (resolvedId) {
           selectedPlace = await getPlace(resolvedId)
         } else {
-          const placeResults = await getPlaces(new URLSearchParams({ keyword: placeIdentifier, page: '1', limit: '1' }))
+          const keyword = identifierToPlaceKeyword(placeIdentifier)
+          if (!keyword) {
+            throw new Error('Place not found')
+          }
+          const placeResults = await getPlaces(new URLSearchParams({ keyword, page: '1', limit: '1' }))
           if (!placeResults.results[0]) {
             throw new Error('Place not found')
           }

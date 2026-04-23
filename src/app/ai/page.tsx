@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import MapClient from '@/components/MapClient'
-import { getRecommendations, type RecommendationsResponse } from '@/lib/api'
+import { buildPlacePath, getRecommendations, type RecommendationsResponse } from '@/lib/api'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 
@@ -48,7 +48,7 @@ export default function AIPage() {
               description: `${place.category} · ${place.distance_km}km`,
               coordinates: { lat: place.latitude, lng: place.longitude },
               mapsUrl: `https://maps.google.com/?q=${place.latitude},${place.longitude}`,
-              detailsUrl: `/place/${place.id}`,
+              detailsUrl: buildPlacePath(place),
             })),
             ...data.recommended_activities.map((activity) => ({
               id: `activity-${activity.id}`,
@@ -109,7 +109,7 @@ export default function AIPage() {
               <h3 className="text-sm font-medium text-emerald-700">{lang === 'ar' ? 'الأماكن' : 'Places'}</h3>
               <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 {data.recommended_places.map((place) => (
-                  <Link key={place.id} href={`/place/${place.id}`} className="rounded-xl border border-slate-200 p-3 hover:border-emerald-300">
+                  <Link key={place.id} href={buildPlacePath(place)} className="rounded-xl border border-slate-200 p-3 hover:border-emerald-300">
                     <h4 className="font-semibold text-slate-900">{place.name}</h4>
                     <p className="mt-1 text-xs text-slate-600">{place.category} · {place.theme}</p>
                     <p className="mt-1 text-xs text-slate-500">{place.distance_km}km</p>
@@ -121,11 +121,15 @@ export default function AIPage() {
               <h3 className="text-sm font-medium text-emerald-700">{lang === 'ar' ? 'الأنشطة' : 'Activities'}</h3>
               <div className="mt-2 space-y-3">
                 {data.recommended_activities.map((activity) => (
-                  <div key={activity.id} className="rounded-xl border border-slate-200 p-3">
+                  <Link
+                    key={activity.id}
+                    href={buildPlacePath({ id: activity.place_id, name: activity.place_name })}
+                    className="block rounded-xl border border-slate-200 p-3 hover:border-emerald-300"
+                  >
                     <h4 className="font-semibold text-slate-900">{activity.title}</h4>
                     <p className="mt-1 text-xs text-slate-600">{activity.place_name}</p>
                     <p className="mt-1 text-xs text-slate-500">{new Date(activity.date_time).toLocaleString()}</p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

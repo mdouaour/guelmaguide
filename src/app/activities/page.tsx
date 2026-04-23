@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { getActivities, joinActivity, leaveActivity, type Activity } from '@/lib/api'
+import { getActivities, getMyActivities, joinActivity, leaveActivity, type Activity } from '@/lib/api'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 
@@ -19,6 +19,8 @@ export default function ActivitiesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [joinedIds, setJoinedIds] = useState<number[]>([])
+  const [isSyncingJoined, setIsSyncingJoined] = useState(false)
+  const [joiningActivityId, setJoiningActivityId] = useState<number | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -53,25 +55,54 @@ export default function ActivitiesPage() {
   const totalPages = Math.max(1, Math.ceil(total / limit))
   const joinedSet = useMemo(() => new Set(joinedIds), [joinedIds])
 
+  useEffect(() => {
+    let isMounted = true
+    const syncJoinedActivities = async () => {
+      if (!token) {
+        setJoinedIds([])
+        return
+      }
+      setIsSyncingJoined(true)
+      try {
+        const joinedActivities = await getMyActivities(token)
+        if (!isMounted) return
+        setJoinedIds(joinedActivities.map((activity) => activity.id))
+      } catch (err) {
+        if (!isMounted) return
+        setError(err instanceof Error ? err.message : 'Failed to sync joined activities')
+      } finally {
+        if (isMounted) setIsSyncingJoined(false)
+      }
+    }
+    syncJoinedActivities()
+    return () => {
+      isMounted = false
+    }
+  }, [token])
+
   const toggleJoin = async (activityId: number) => {
     if (!token) {
       setError(lang === 'ar' ? 'يرجى تسجيل الدخول للانضمام.' : 'Please login to join activities.')
       return
     }
     try {
-      if (joinedSet.has(activityId)) {
+      const currentlyJoined = joinedSet.has(activityId)
+      setJoiningActivityId(activityId)
+      if (currentlyJoined) {
         await leaveActivity(activityId, token)
         setJoinedIds((previous) => previous.filter((id) => id !== activityId))
       } else {
         await joinActivity(activityId, token)
-        setJoinedIds((previous) => [...previous, activityId])
+        setJoinedIds((previous) =>
+          previous.includes(activityId) ? previous : [...previous, activityId],
+        )
       }
       setActivities((previous) =>
         previous.map((activity) =>
           activity.id === activityId
             ? {
                 ...activity,
-                participants_count: joinedSet.has(activityId)
+                participants_count: currentlyJoined
                   ? Math.max(0, activity.participants_count - 1)
                   : activity.participants_count + 1,
               }
@@ -81,6 +112,8 @@ export default function ActivitiesPage() {
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update registration')
+    } finally {
+      setJoiningActivityId(null)
     }
   }
 
@@ -128,6 +161,11 @@ export default function ActivitiesPage() {
       </div>
 
       {isLoading ? <p className="mt-4 text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading activities...'}</p> : null}
+      {isSyncingJoined ? (
+        <p className="mt-2 text-xs text-slate-500">
+          {lang === 'ar' ? 'مزامنة الأنشطة المنضم إليها...' : 'Syncing joined activities...'}
+        </p>
+      ) : null}
       {error ? <p className="mt-4 text-sm text-rose-600">{error}</p> : null}
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -147,10 +185,20 @@ export default function ActivitiesPage() {
               </p>
               <button
                 onClick={() => toggleJoin(activity.id)}
-                disabled={isFull}
+                disabled={isFull || joiningActivityId === activity.id}
                 className="mt-3 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isJoined ? (lang === 'ar' ? 'مغادرة' : 'Leave') : lang === 'ar' ? 'انضمام' : 'Join'}
+                {joiningActivityId === activity.id
+                  ? lang === 'ar'
+                    ? 'جارٍ التحديث...'
+                    : 'Updating...'
+                  : isJoined
+                    ? lang === 'ar'
+                      ? 'مغادرة'
+                      : 'Leave'
+                    : lang === 'ar'
+                      ? 'انضمام'
+                      : 'Join'}
               </button>
             </article>
           )
