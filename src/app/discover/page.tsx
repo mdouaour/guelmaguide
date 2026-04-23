@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import MapClient from '@/components/MapClient'
-import { getPlaces, type Place } from '@/lib/api'
+import { buildPlacePath, getPlaces, type Place } from '@/lib/api'
 import { useLanguage } from '@/context/LanguageContext'
 
 const categories = ['all', 'forest', 'culture', 'nature', 'sports', 'relaxation', 'thermal_baths'] as const
@@ -62,7 +62,7 @@ export default function DiscoverPage() {
         description: `${place.category} · ${place.theme}`,
         coordinates: { lat: place.latitude, lng: place.longitude },
         mapsUrl: `https://maps.google.com/?q=${place.latitude},${place.longitude}`,
-        detailsUrl: `/place/${place.id}`,
+        detailsUrl: buildPlacePath(place),
       })),
     [places],
   )
@@ -127,7 +127,7 @@ export default function DiscoverPage() {
                 <h2 className="mt-1 text-lg font-semibold text-slate-900">{place.name}</h2>
                 <p className="mt-1 text-sm text-slate-600">{place.description}</p>
                 <p className="mt-2 text-xs text-slate-500">{place.theme}</p>
-                <Link href={`/place/${place.id}`} className="mt-3 inline-block text-sm text-emerald-700">
+                <Link href={buildPlacePath(place)} className="mt-3 inline-block text-sm text-emerald-700">
                   {lang === 'ar' ? 'عرض التفاصيل ←' : 'View details →'}
                 </Link>
               </article>

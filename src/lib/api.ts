@@ -1,4 +1,13 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1'
+function normalizeApiBaseUrl(value: string) {
+  const withoutTrailingSlashes = value.replace(/\/+$/, '')
+  return withoutTrailingSlashes.endsWith('/api/v1')
+    ? withoutTrailingSlashes
+    : `${withoutTrailingSlashes}/api/v1`
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1',
+)
 
 export interface ApiErrorPayload {
   detail?: string
@@ -65,6 +74,30 @@ export interface Place {
   images: string[]
   created_at: string
   updated_at: string
+}
+
+function slugifyPlaceName(name: string) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+}
+
+export function buildPlacePath(place: Pick<Place, 'id' | 'name'>) {
+  return `/place/${place.id}-${slugifyPlaceName(place.name)}`
+}
+
+export function resolvePlaceIdFromIdentifier(identifier: string) {
+  const match = identifier.match(/^(\d+)(?:-|$)/)
+  if (!match) return null
+  const parsed = Number(match[1])
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+export function identifierToPlaceKeyword(identifier: string) {
+  return identifier.replace(/^\d+-?/, '').replace(/-/g, ' ').trim()
 }
 
 export interface Activity {
@@ -147,6 +180,10 @@ export function getPlace(placeId: number) {
 
 export function getActivities(params: URLSearchParams) {
   return apiRequest<PaginatedResponse<Activity>>(`/activities?${params.toString()}`)
+}
+
+export function getMyActivities(token: string) {
+  return apiRequest<Activity[]>('/users/me/activities', {}, token)
 }
 
 export function joinActivity(activityId: number, token: string) {

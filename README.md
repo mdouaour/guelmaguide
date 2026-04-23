@@ -70,12 +70,16 @@ Sitemap and robots are generated from the App Router metadata files:
 ### Backend (Render / Railway)
 
 1. Set environment variables from `.env.example` (`JWT_SECRET_KEY`, `DATABASE_URL`, optional `REDIS_URL`).
-2. Install dependencies with `pip install -r backend/requirements.txt`.
-3. Start command:
+2. Set `BACKEND_CORS_ORIGINS` with your frontend URLs (comma-separated), for example:
+   ```bash
+   BACKEND_CORS_ORIGINS=https://your-project.vercel.app,https://www.your-domain.com
+   ```
+3. Install dependencies with `pip install -r backend/requirements.txt`.
+4. Start command:
    ```bash
    uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
    ```
-4. Run migrations on deploy:
+5. Run migrations on deploy:
    ```bash
    cd backend && alembic upgrade head
    ```
@@ -83,6 +87,16 @@ Sitemap and robots are generated from the App Router metadata files:
 ### Frontend (Vercel)
 
 1. Import repository in Vercel.
-2. Set `NEXT_PUBLIC_API_BASE_URL` to your backend API base URL (for example `https://api.example.com/api/v1`).
+2. Set `NEXT_PUBLIC_API_BASE_URL` to your backend base URL (for example `https://api.example.com` or `https://api.example.com/api/v1`).
 3. Build command: `npm run build`
 4. Output: default Next.js output (no custom config required).
+
+## Real usage prep
+
+- Optional demo login shown on homepage:
+  - `NEXT_PUBLIC_DEMO_USER_EMAIL`
+  - `NEXT_PUBLIC_DEMO_USER_PASSWORD`
+- Prepare demo accounts by registering users through `/api/v1/auth/register`.
+- Prepare demo places/activities by creating organizer/admin users and using:
+  - `POST /api/v1/places`
+  - `POST /api/v1/activities`
