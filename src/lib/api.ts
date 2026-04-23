@@ -49,6 +49,7 @@ export interface AuthUser {
   id: number
   email: string
   role: 'visitor' | 'organizer' | 'admin'
+  organizer_verified: boolean
   created_at: string
   updated_at: string
 }
@@ -105,12 +106,19 @@ export interface Activity {
   title: string
   description: string
   place_id: number
+  place_name: string
   organizer_id: number
   date_time: string
   max_participants: number
   participants_count: number
   created_at: string
   updated_at: string
+  mood: string | null
+  visibility: string
+  approval_status: string
+  is_recurring: boolean
+  recurrence_rule: string | null
+  organizer_verified: boolean
 }
 
 export interface PaginatedResponse<T> {
@@ -219,4 +227,58 @@ export function leaveActivity(activityId: number, token: string) {
 
 export function getRecommendations(params: URLSearchParams, token?: string) {
   return apiRequest<RecommendationsResponse>(`/ai/recommendations?${params.toString()}`, {}, token)
+}
+
+export function getFeaturedPlaces() {
+  return apiRequest<Place[]>('/places/featured')
+}
+
+export function requestPasswordReset(email: string) {
+  return apiRequest<{ message: string; reset_token?: string }>(
+    '/auth/request-password-reset',
+    { method: 'POST', body: JSON.stringify({ email }) },
+  )
+}
+
+export function resetPassword(token: string, newPassword: string) {
+  return apiRequest<AuthResponse>(
+    '/auth/reset-password',
+    { method: 'POST', body: JSON.stringify({ token, new_password: newPassword }) },
+  )
+}
+
+// Admin API
+export type AdminActivity = Activity
+
+export interface AdminUser {
+  id: number
+  email: string
+  role: string
+  organizer_verified: boolean
+  created_at: string
+  updated_at: string
+}
+
+export function adminGetUsers(token: string) {
+  return apiRequest<AdminUser[]>('/admin/users', {}, token)
+}
+
+export function adminGetActivities(params: URLSearchParams, token: string) {
+  return apiRequest<PaginatedResponse<Activity>>(`/admin/activities?${params.toString()}`, {}, token)
+}
+
+export function adminApproveActivity(activityId: number, token: string) {
+  return apiRequest<Activity>(`/admin/activities/${activityId}/approve`, { method: 'PATCH' }, token)
+}
+
+export function adminRejectActivity(activityId: number, token: string) {
+  return apiRequest<Activity>(`/admin/activities/${activityId}/reject`, { method: 'PATCH' }, token)
+}
+
+export function adminVerifyOrganizer(userId: number, token: string) {
+  return apiRequest<AdminUser>(`/admin/users/${userId}/verify-organizer`, { method: 'PATCH' }, token)
+}
+
+export function adminPromoteUser(userId: number, token: string) {
+  return apiRequest<AdminUser>(`/admin/users/${userId}/promote`, { method: 'PATCH' }, token)
 }
