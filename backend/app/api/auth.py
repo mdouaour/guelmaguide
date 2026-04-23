@@ -112,7 +112,9 @@ def request_password_reset(
         expires_delta=timedelta(minutes=_PASSWORD_RESET_EXPIRE_MINUTES),
         extra_claims={"scope": _PASSWORD_RESET_SCOPE},
     )
-    _ = user  # intentionally unused — we always return the same message
+    if user is None:
+        # Return same response to avoid user enumeration
+        pass
     return PasswordResetRequestResponse(
         message="If this email is registered, a reset link will be sent.",
         reset_token=reset_token,

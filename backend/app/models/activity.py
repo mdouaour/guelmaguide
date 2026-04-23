@@ -34,7 +34,7 @@ class Activity(TimestampedBase):
     visibility: Mapped[str] = mapped_column(String(10), nullable=False, server_default="public")
     approval_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="approved")
     is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
-    recurrence_rule: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    recurrence_rule: Mapped[str | None] = mapped_column(String(50), nullable=True, server_default=None)
 
     place: Mapped["Place"] = relationship(back_populates="activities")
     organizer: Mapped["User"] = relationship(
