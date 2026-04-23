@@ -41,6 +41,8 @@ def list_activities_with_counts(
     place_id: int | None = None,
     availability_only: bool = False,
     category: PlaceCategory | None = None,
+    mood: str | None = None,
+    include_non_public: bool = False,
     page: int | None = None,
     limit: int = 20,
 ) -> tuple[list[tuple[Activity, int]], int]:
@@ -60,6 +62,11 @@ def list_activities_with_counts(
         .outerjoin(registrations_subquery, registrations_subquery.c.activity_id == Activity.id)
     )
 
+    if not include_non_public:
+        statement = statement.where(
+            Activity.approval_status == "approved",
+            Activity.visibility == "public",
+        )
     if date_filter is not None:
         day_start = datetime.combine(date_filter, time.min, tzinfo=UTC)
         day_end = day_start + timedelta(days=1)
@@ -68,6 +75,8 @@ def list_activities_with_counts(
         statement = statement.where(Activity.place_id == place_id)
     if category is not None:
         statement = statement.where(Place.category == category)
+    if mood is not None:
+        statement = statement.where(Activity.mood == mood)
     if availability_only:
         statement = statement.where(participants_count < Activity.max_participants)
 
@@ -115,7 +124,16 @@ def create_activity(db: Session, payload: ActivityCreate, organizer_id: int) -> 
     if place is None:
         raise InvalidPlaceError("Invalid place_id")
 
-    activity = Activity(**payload.model_dump(), organizer_id=organizer_id)
+    activity = Activity(
+        title=payload.title,
+        description=payload.description,
+        place_id=payload.place_id,
+        date_time=payload.date_time,
+        max_participants=payload.max_participants,
+        mood=payload.mood,
+        visibility=payload.visibility,
+        organizer_id=organizer_id,
+    )
     db.add(activity)
     db.commit()
     db.refresh(activity)

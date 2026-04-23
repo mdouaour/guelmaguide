@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base, TimestampedBase
@@ -30,6 +30,11 @@ class Activity(TimestampedBase):
     )
     date_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
     max_participants: Mapped[int] = mapped_column(Integer, nullable=False)
+    mood: Mapped[str | None] = mapped_column(String(20), index=True, nullable=True, server_default=None)
+    visibility: Mapped[str] = mapped_column(String(10), nullable=False, server_default="public")
+    approval_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="approved")
+    is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    recurrence_rule: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     place: Mapped["Place"] = relationship(back_populates="activities")
     organizer: Mapped["User"] = relationship(

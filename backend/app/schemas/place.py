@@ -31,6 +31,7 @@ class PlaceRead(PlaceBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    featured: bool
 
     model_config = {"from_attributes": True}
 

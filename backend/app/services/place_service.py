@@ -144,3 +144,8 @@ def list_nearby_places(db: Session, latitude: float, longitude: float, radius_km
 
     filtered_places.sort(key=lambda item: item[0])
     return [place for _, place in filtered_places]
+
+
+def list_featured_places(db: Session, limit: int = 6) -> list[Place]:
+    statement = select(Place).where(Place.featured.is_(True)).order_by(Place.name.asc()).limit(limit)
+    return list(db.scalars(statement))

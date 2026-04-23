@@ -13,6 +13,7 @@ from app.schemas.place import PaginatedPlacesResponse, PlaceCreate, PlaceRead
 from app.services.place_service import (
     create_place,
     get_place_by_id,
+    list_featured_places,
     list_nearby_places,
     list_places,
     list_places_by_category,
@@ -108,6 +109,12 @@ def get_nearby_places(
         settings.REDIS_CACHE_TTL_SECONDS,
     )
     return payload
+
+
+@router.get("/featured", response_model=list[PlaceRead])
+def get_featured_places(db: Annotated[Session, Depends(get_db)]) -> list[PlaceRead]:
+    places = list_featured_places(db, limit=6)
+    return [PlaceRead.model_validate(place) for place in places]
 
 
 @router.get("/{place_id}", response_model=PlaceRead)
