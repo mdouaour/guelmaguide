@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Any
+from urllib.parse import urlparse
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -35,10 +36,19 @@ class Settings(BaseSettings):
         if value is None:
             return []
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        if isinstance(value, list):
-            return [str(origin).strip() for origin in value if str(origin).strip()]
-        raise ValueError("BACKEND_CORS_ORIGINS must be a comma-separated string or list")
+            origins = [origin.strip() for origin in value.split(",") if origin.strip()]
+        elif isinstance(value, list):
+            origins = [str(origin).strip() for origin in value if str(origin).strip()]
+        else:
+            raise ValueError("BACKEND_CORS_ORIGINS must be a comma-separated string or list")
+
+        for origin in origins:
+            parsed = urlparse(origin)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise ValueError(
+                    f"Invalid CORS origin '{origin}'. Use full URLs like https://your-frontend.vercel.app"
+                )
+        return origins
 
 
 @lru_cache

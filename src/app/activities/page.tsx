@@ -90,8 +90,12 @@ export default function ActivitiesPage() {
       setJoiningActivityId(activityId)
       if (currentlyJoined) {
         await leaveActivity(activityId, token)
+        setJoinedIds((previous) => previous.filter((id) => id !== activityId))
       } else {
         await joinActivity(activityId, token)
+        setJoinedIds((previous) =>
+          previous.includes(activityId) ? previous : [...previous, activityId],
+        )
       }
       setActivities((previous) =>
         previous.map((activity) =>
@@ -105,8 +109,6 @@ export default function ActivitiesPage() {
             : activity,
         ),
       )
-      const joinedActivities = await getMyActivities(token)
-      setJoinedIds(joinedActivities.map((activity) => activity.id))
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update registration')
