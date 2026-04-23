@@ -7,9 +7,11 @@ import {
   createActivity,
   getActivities,
   getMyActivities,
+  getPlaces,
   joinActivity,
   leaveActivity,
   type Activity,
+  type Place,
 } from '@/lib/api'
 import { getActivityImage } from '@/lib/visuals'
 import { useLanguage } from '@/context/LanguageContext'
@@ -39,12 +41,34 @@ export default function ActivitiesPage() {
   const [joiningActivityId, setJoiningActivityId] = useState<number | null>(null)
 
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [availablePlaces, setAvailablePlaces] = useState<Place[]>([])
+  const [isLoadingPlaces, setIsLoadingPlaces] = useState(false)
   const [createTitle, setCreateTitle] = useState('')
   const [createDescription, setCreateDescription] = useState('')
   const [createPlaceId, setCreatePlaceId] = useState('')
   const [createDateTime, setCreateDateTime] = useState('')
   const [createMaxParticipants, setCreateMaxParticipants] = useState('10')
   const [isCreating, setIsCreating] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+    const loadPlaces = async () => {
+      setIsLoadingPlaces(true)
+      try {
+        const response = await getPlaces(new URLSearchParams({ limit: '100' }))
+        if (!isMounted) return
+        setAvailablePlaces(response.results)
+      } catch {
+        // places dropdown will show empty; not critical
+      } finally {
+        if (isMounted) setIsLoadingPlaces(false)
+      }
+    }
+    loadPlaces()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -227,15 +251,24 @@ export default function ActivitiesPage() {
               placeholder={lang === 'ar' ? 'عنوان النشاط' : 'Activity title'}
               className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
             />
-            <input
-              type="number"
-              min={1}
+            <select
               value={createPlaceId}
               onChange={(event) => setCreatePlaceId(event.target.value)}
               required
-              placeholder={lang === 'ar' ? 'رقم المكان' : 'Place ID'}
-              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
-            />
+              disabled={isLoadingPlaces}
+              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32] disabled:opacity-50"
+            >
+              <option value="">
+                {isLoadingPlaces
+                  ? lang === 'ar' ? 'جاري التحميل...' : 'Loading places...'
+                  : lang === 'ar' ? 'اختر مكانًا' : 'Select a place'}
+              </option>
+              {availablePlaces.map((place) => (
+                <option key={place.id} value={String(place.id)}>
+                  {place.name}
+                </option>
+              ))}
+            </select>
             <textarea
               value={createDescription}
               onChange={(event) => setCreateDescription(event.target.value)}
@@ -280,17 +313,24 @@ export default function ActivitiesPage() {
             }}
             className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
           />
-          <input
-            type="number"
-            min={1}
+          <select
             value={placeFilter}
             onChange={(event) => {
               setPage(1)
               setPlaceFilter(event.target.value)
             }}
-            placeholder={lang === 'ar' ? 'رقم المكان' : 'Place ID'}
-            className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
-          />
+            disabled={isLoadingPlaces}
+            className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32] disabled:opacity-50"
+          >
+            <option value="">
+              {lang === 'ar' ? 'جميع الأماكن' : 'All places'}
+            </option>
+            {availablePlaces.map((place) => (
+              <option key={place.id} value={String(place.id)}>
+                {place.name}
+              </option>
+            ))}
+          </select>
           <label className="flex min-h-[48px] items-center gap-2 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-700">
             <input
               type="checkbox"

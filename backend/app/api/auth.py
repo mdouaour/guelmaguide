@@ -1,9 +1,12 @@
+import logging
 from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 from app.core.rate_limiter import rate_limit_dependency
@@ -89,7 +92,6 @@ class PasswordResetRequest(BaseModel):
 
 class PasswordResetRequestResponse(BaseModel):
     message: str
-    reset_token: str
 
 
 class PasswordResetConfirm(BaseModel):
@@ -107,17 +109,17 @@ def request_password_reset(
     db: Annotated[Session, Depends(get_db)],
 ) -> PasswordResetRequestResponse:
     user = get_user_by_email(db, payload.email)
-    reset_token = create_access_token(
-        subject=payload.email,
-        expires_delta=timedelta(minutes=_PASSWORD_RESET_EXPIRE_MINUTES),
-        extra_claims={"scope": _PASSWORD_RESET_SCOPE},
-    )
-    if user is None:
-        # Return same response to avoid user enumeration
-        pass
+    if user is not None:
+        reset_token = create_access_token(
+            subject=payload.email,
+            expires_delta=timedelta(minutes=_PASSWORD_RESET_EXPIRE_MINUTES),
+            extra_claims={"scope": _PASSWORD_RESET_SCOPE},
+        )
+        # In production replace this with an email delivery call.
+        logger.info("Password reset token for %s: %s", payload.email, reset_token)
+    # Always return the same response to avoid user enumeration.
     return PasswordResetRequestResponse(
         message="If this email is registered, a reset link will be sent.",
-        reset_token=reset_token,
     )
 
 

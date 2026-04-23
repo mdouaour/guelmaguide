@@ -23,6 +23,7 @@ def upgrade() -> None:
         sa.Column("email", sa.String(length=255), nullable=False),
         sa.Column("hashed_password", sa.String(length=255), nullable=False),
         sa.Column("role", sa.String(length=20), nullable=False),
+        sa.Column("organizer_verified", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column(
             "id",
             sa.Integer(),
@@ -45,6 +46,7 @@ def upgrade() -> None:
         sa.Column("category", sa.String(length=32), nullable=False),
         sa.Column("theme", sa.String(length=100), nullable=False),
         sa.Column("images", sa.JSON(), nullable=False),
+        sa.Column("featured", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column(
             "id",
             sa.Integer(),
@@ -54,7 +56,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.CheckConstraint(
-            "category IN ('forest', 'sport', 'sports', 'relaxation', 'culture', 'nature', 'thermal_baths')",
+            "category IN ('forest', 'sports', 'relaxation', 'culture', 'nature', 'thermal_baths')",
             name="ck_places_category",
         ),
     )
@@ -79,6 +81,11 @@ def upgrade() -> None:
         sa.Column("organizer_id", sa.Integer(), nullable=False),
         sa.Column("date_time", sa.DateTime(timezone=True), nullable=False),
         sa.Column("max_participants", sa.Integer(), nullable=False),
+        sa.Column("mood", sa.String(length=20), nullable=True),
+        sa.Column("visibility", sa.String(length=10), nullable=False, server_default="public"),
+        sa.Column("approval_status", sa.String(length=20), nullable=False, server_default="approved"),
+        sa.Column("is_recurring", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("recurrence_rule", sa.String(length=50), nullable=True),
         sa.Column(
             "id",
             sa.Integer(),
@@ -99,6 +106,7 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index("ix_activities_id", "activities", ["id"], unique=False)
+    op.create_index("ix_activities_mood", "activities", ["mood"], unique=False)
     op.create_index("ix_activities_organizer_id", "activities", ["organizer_id"], unique=False)
     op.create_index("ix_activities_place_id", "activities", ["place_id"], unique=False)
     op.create_index("ix_activities_title", "activities", ["title"], unique=False)
@@ -119,6 +127,7 @@ def downgrade() -> None:
     op.drop_index("ix_activities_title", table_name="activities")
     op.drop_index("ix_activities_place_id", table_name="activities")
     op.drop_index("ix_activities_organizer_id", table_name="activities")
+    op.drop_index("ix_activities_mood", table_name="activities")
     op.drop_index("ix_activities_id", table_name="activities")
     op.drop_index("ix_activities_date_time_place_id", table_name="activities")
     op.drop_index("ix_activities_date_time", table_name="activities")
