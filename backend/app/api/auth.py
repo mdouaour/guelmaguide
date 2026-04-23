@@ -115,8 +115,9 @@ def request_password_reset(
             expires_delta=timedelta(minutes=_PASSWORD_RESET_EXPIRE_MINUTES),
             extra_claims={"scope": _PASSWORD_RESET_SCOPE},
         )
-        # In production replace this with an email delivery call.
-        logger.info("Password reset token for %s: %s", payload.email, reset_token)
+        if settings.APP_ENV != "production":
+            # Development only — replace with a real email delivery call in production.
+            logger.debug("Password reset token for %s: %s", payload.email, reset_token)
     # Always return the same response to avoid user enumeration.
     return PasswordResetRequestResponse(
         message="If this email is registered, a reset link will be sent.",

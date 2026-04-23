@@ -58,8 +58,9 @@ export default function ActivitiesPage() {
         const response = await getPlaces(new URLSearchParams({ limit: '100' }))
         if (!isMounted) return
         setAvailablePlaces(response.results)
-      } catch {
-        // places dropdown will show empty; not critical
+      } catch (err) {
+        if (!isMounted) return
+        setError(err instanceof Error ? err.message : 'Failed to load places')
       } finally {
         if (isMounted) setIsLoadingPlaces(false)
       }

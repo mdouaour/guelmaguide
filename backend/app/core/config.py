@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Guelma Guide API"
     PROJECT_VERSION: str = "0.1.0"
     API_V1_PREFIX: str = "/api/v1"
+    APP_ENV: str = "production"
     BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=list)
     JWT_SECRET_KEY: str = Field(..., min_length=32)
     JWT_ALGORITHM: str = "HS256"
