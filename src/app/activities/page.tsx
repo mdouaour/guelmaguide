@@ -1,13 +1,27 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import FadeInSection from '@/components/FadeInSection'
-import { getActivities, getMyActivities, joinActivity, leaveActivity, type Activity } from '@/lib/api'
+import {
+  createActivity,
+  getActivities,
+  getMyActivities,
+  joinActivity,
+  leaveActivity,
+  type Activity,
+} from '@/lib/api'
 import { getActivityImage } from '@/lib/visuals'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 
 const limit = 10
+
+function toIsoDateTime(value: string) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString()
+}
 
 export default function ActivitiesPage() {
   const { lang } = useLanguage()
@@ -23,6 +37,14 @@ export default function ActivitiesPage() {
   const [joinedIds, setJoinedIds] = useState<number[]>([])
   const [isSyncingJoined, setIsSyncingJoined] = useState(false)
   const [joiningActivityId, setJoiningActivityId] = useState<number | null>(null)
+
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [createTitle, setCreateTitle] = useState('')
+  const [createDescription, setCreateDescription] = useState('')
+  const [createPlaceId, setCreatePlaceId] = useState('')
+  const [createDateTime, setCreateDateTime] = useState('')
+  const [createMaxParticipants, setCreateMaxParticipants] = useState('10')
+  const [isCreating, setIsCreating] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -119,49 +141,168 @@ export default function ActivitiesPage() {
     }
   }
 
+  const onCreateActivity = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!token) {
+      setError(lang === 'ar' ? 'يرجى تسجيل الدخول أولاً.' : 'Please login first.')
+      return
+    }
+    const placeId = Number(createPlaceId)
+    const maxParticipants = Number(createMaxParticipants)
+    const isoDateTime = toIsoDateTime(createDateTime)
+    if (!placeId || !maxParticipants || !isoDateTime) {
+      setError(lang === 'ar' ? 'تحقق من بيانات النشاط.' : 'Please check the activity details.')
+      return
+    }
+
+    setIsCreating(true)
+    setError(null)
+    try {
+      const created = await createActivity(
+        {
+          title: createTitle.trim(),
+          description: createDescription.trim(),
+          place_id: placeId,
+          date_time: isoDateTime,
+          max_participants: maxParticipants,
+        },
+        token,
+      )
+      setActivities((previous) => [created, ...previous].slice(0, limit))
+      setTotal((previous) => previous + 1)
+      setShowCreateForm(false)
+      setCreateTitle('')
+      setCreateDescription('')
+      setCreatePlaceId('')
+      setCreateDateTime('')
+      setCreateMaxParticipants('10')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create activity')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
       <FadeInSection>
-      <header>
-        <h1 className="text-2xl font-semibold text-slate-900">{lang === 'ar' ? 'الأنشطة' : 'Activities'}</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          {lang === 'ar' ? 'اختر نشاطك القادم: رياضة، تنزه، أو لقاءات اجتماعية.' : 'Pick your next experience: sports, hiking, or social meetups.'}
-        </p>
-      </header>
+        <header className="space-y-2">
+          <h1 className="text-2xl font-semibold text-slate-900">{lang === 'ar' ? 'الأنشطة' : 'Activities'}</h1>
+          <p className="text-sm text-slate-600">
+            {lang === 'ar'
+              ? 'تصفح الأنشطة بحرية. تسجيل الدخول مطلوب فقط للانضمام أو إنشاء نشاط.'
+              : 'Browse activities freely. Login is only required to join or create one.'}
+          </p>
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <Link href="/my-activities" className="rounded-xl border border-emerald-200 px-3 py-2 hover:border-[#2E7D32]">
+              {lang === 'ar' ? 'أنشطتي' : 'My Activities'}
+            </Link>
+            {!token ? (
+              <Link href="/auth" className="rounded-xl bg-[#2E7D32] px-3 py-2 text-white">
+                {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
+              </Link>
+            ) : null}
+            <button
+              onClick={() => {
+                if (!token) {
+                  setError(lang === 'ar' ? 'يرجى تسجيل الدخول أولاً.' : 'Please login first.')
+                  return
+                }
+                setShowCreateForm((previous) => !previous)
+              }}
+              className="rounded-xl border border-emerald-200 px-3 py-2 hover:border-[#2E7D32]"
+            >
+              {lang === 'ar' ? 'إنشاء نشاط' : 'Create Activity'}
+            </button>
+          </div>
+        </header>
 
-      <div className="tour-card mt-4 grid gap-3 p-4 sm:grid-cols-4">
-        <input
-          type="date"
-          value={dateFilter}
-          onChange={(event) => {
-            setPage(1)
-            setDateFilter(event.target.value)
-          }}
-          className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
-        />
-        <input
-          type="number"
-          min={1}
-          value={placeFilter}
-          onChange={(event) => {
-            setPage(1)
-            setPlaceFilter(event.target.value)
-          }}
-          placeholder={lang === 'ar' ? 'رقم المكان' : 'Place ID'}
-          className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
-        />
-        <label className="flex min-h-[48px] items-center gap-2 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-700">
+        {showCreateForm ? (
+          <form onSubmit={onCreateActivity} className="tour-card mt-4 grid gap-3 p-4 sm:grid-cols-2">
+            <input
+              value={createTitle}
+              onChange={(event) => setCreateTitle(event.target.value)}
+              required
+              minLength={3}
+              placeholder={lang === 'ar' ? 'عنوان النشاط' : 'Activity title'}
+              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
+            />
+            <input
+              type="number"
+              min={1}
+              value={createPlaceId}
+              onChange={(event) => setCreatePlaceId(event.target.value)}
+              required
+              placeholder={lang === 'ar' ? 'رقم المكان' : 'Place ID'}
+              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
+            />
+            <textarea
+              value={createDescription}
+              onChange={(event) => setCreateDescription(event.target.value)}
+              required
+              minLength={10}
+              placeholder={lang === 'ar' ? 'وصف النشاط' : 'Description'}
+              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32] sm:col-span-2"
+            />
+            <input
+              type="datetime-local"
+              value={createDateTime}
+              onChange={(event) => setCreateDateTime(event.target.value)}
+              required
+              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
+            />
+            <input
+              type="number"
+              min={1}
+              value={createMaxParticipants}
+              onChange={(event) => setCreateMaxParticipants(event.target.value)}
+              required
+              placeholder={lang === 'ar' ? 'الحد الأقصى للمشاركين' : 'Max participants'}
+              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
+            />
+            <button
+              type="submit"
+              disabled={isCreating}
+              className="rounded-xl bg-[#2E7D32] px-4 py-3 text-sm font-medium text-white tour-hover disabled:opacity-50 sm:col-span-2"
+            >
+              {isCreating ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Creating...') : lang === 'ar' ? 'حفظ النشاط' : 'Save activity'}
+            </button>
+          </form>
+        ) : null}
+
+        <div className="tour-card mt-4 grid gap-3 p-4 sm:grid-cols-4">
           <input
-            type="checkbox"
-            checked={availabilityOnly}
+            type="date"
+            value={dateFilter}
             onChange={(event) => {
               setPage(1)
-              setAvailabilityOnly(event.target.checked)
+              setDateFilter(event.target.value)
             }}
+            className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
           />
-          {lang === 'ar' ? 'متاح فقط' : 'Available only'}
-        </label>
-      </div>
+          <input
+            type="number"
+            min={1}
+            value={placeFilter}
+            onChange={(event) => {
+              setPage(1)
+              setPlaceFilter(event.target.value)
+            }}
+            placeholder={lang === 'ar' ? 'رقم المكان' : 'Place ID'}
+            className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
+          />
+          <label className="flex min-h-[48px] items-center gap-2 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={availabilityOnly}
+              onChange={(event) => {
+                setPage(1)
+                setAvailabilityOnly(event.target.checked)
+              }}
+            />
+            {lang === 'ar' ? 'متاح فقط' : 'Available only'}
+          </label>
+        </div>
       </FadeInSection>
 
       {isLoading ? <p className="mt-4 text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading activities...'}</p> : null}
@@ -178,37 +319,37 @@ export default function ActivitiesPage() {
           const isFull = activity.participants_count >= activity.max_participants && !isJoined
           return (
             <FadeInSection key={activity.id}>
-            <article className="tour-card tour-hover overflow-hidden">
-              <img src={getActivityImage(activity.title)} alt={activity.title} className="h-40 w-full object-cover" />
-              <div className="p-4">
-              <h2 className="text-lg font-semibold text-slate-900">{activity.title}</h2>
-              <p className="mt-1 text-sm text-slate-600">{activity.description}</p>
-              <p className="mt-2 text-xs text-slate-500">{new Date(activity.date_time).toLocaleString()}</p>
-              <p className="text-xs text-slate-500">
-                {lang === 'ar' ? 'المكان' : 'Place'} #{activity.place_id}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {activity.participants_count}/{activity.max_participants} {lang === 'ar' ? 'مشاركين' : 'participants'}
-              </p>
-              <button
-                onClick={() => toggleJoin(activity.id)}
-                disabled={isFull || joiningActivityId === activity.id}
-                className={`mt-3 min-h-[40px] rounded-xl px-3 py-2 text-xs font-medium ${isJoined ? 'border border-[#FF7043] text-[#FF7043]' : 'bg-[#2E7D32] text-white'} disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                {joiningActivityId === activity.id
-                  ? lang === 'ar'
-                    ? 'جارٍ التحديث...'
-                    : 'Updating...'
-                  : isJoined
-                    ? lang === 'ar'
-                      ? 'مغادرة'
-                      : 'Leave'
-                    : lang === 'ar'
-                      ? 'انضمام'
-                      : 'Join'}
-              </button>
-              </div>
-            </article>
+              <article className="tour-card tour-hover overflow-hidden">
+                <img src={getActivityImage(activity.title)} alt={activity.title} className="h-40 w-full object-cover" />
+                <div className="p-4">
+                  <h2 className="text-lg font-semibold text-slate-900">{activity.title}</h2>
+                  <p className="mt-1 text-sm text-slate-600">{activity.description}</p>
+                  <p className="mt-2 text-xs text-slate-500">{new Date(activity.date_time).toLocaleString()}</p>
+                  <p className="text-xs text-slate-500">
+                    {lang === 'ar' ? 'المكان' : 'Place'} #{activity.place_id}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {activity.participants_count}/{activity.max_participants} {lang === 'ar' ? 'مشاركين' : 'participants'}
+                  </p>
+                  <button
+                    onClick={() => toggleJoin(activity.id)}
+                    disabled={isFull || joiningActivityId === activity.id}
+                    className={`mt-3 min-h-[40px] rounded-xl px-3 py-2 text-xs font-medium ${isJoined ? 'border border-[#FF7043] text-[#FF7043]' : 'bg-[#2E7D32] text-white'} disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {joiningActivityId === activity.id
+                      ? lang === 'ar'
+                        ? 'جارٍ التحديث...'
+                        : 'Updating...'
+                      : isJoined
+                        ? lang === 'ar'
+                          ? 'مغادرة'
+                          : 'Leave'
+                        : lang === 'ar'
+                          ? 'انضمام'
+                          : 'Join'}
+                  </button>
+                </div>
+              </article>
             </FadeInSection>
           )
         })}

@@ -23,6 +23,15 @@ export default function DiscoverPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const keyword = params.get('keyword') ?? ''
+    if (keyword) {
+      setPage(1)
+      setQuery(keyword)
+    }
+  }, [])
+
+  useEffect(() => {
     let isMounted = true
     const loadPlaces = async () => {
       setIsLoading(true)

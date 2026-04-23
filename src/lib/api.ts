@@ -120,6 +120,14 @@ export interface PaginatedResponse<T> {
   results: T[]
 }
 
+export interface ActivityCreatePayload {
+  title: string
+  description: string
+  place_id: number
+  date_time: string
+  max_participants: number
+}
+
 export interface RecommendationPlace {
   id: number
   name: string
@@ -190,6 +198,17 @@ export function joinActivity(activityId: number, token: string) {
   return apiRequest<{ user_id: number; activity_id: number; created_at: string }>(
     `/activities/${activityId}/join`,
     { method: 'POST' },
+    token,
+  )
+}
+
+export function createActivity(payload: ActivityCreatePayload, token: string) {
+  return apiRequest<Activity>(
+    '/activities',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
     token,
   )
 }
