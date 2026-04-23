@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import FadeInSection from '@/components/FadeInSection'
 import { getActivities, getMyActivities, joinActivity, leaveActivity, type Activity } from '@/lib/api'
+import { getActivityImage } from '@/lib/visuals'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 
@@ -119,14 +121,15 @@ export default function ActivitiesPage() {
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
+      <FadeInSection>
       <header>
         <h1 className="text-2xl font-semibold text-slate-900">{lang === 'ar' ? 'الأنشطة' : 'Activities'}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {lang === 'ar' ? 'تصفية حسب التاريخ والتوفر والمكان.' : 'Filter by date, availability, and place.'}
+          {lang === 'ar' ? 'اختر نشاطك القادم: رياضة، تنزه، أو لقاءات اجتماعية.' : 'Pick your next experience: sports, hiking, or social meetups.'}
         </p>
       </header>
 
-      <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-4">
+      <div className="tour-card mt-4 grid gap-3 p-4 sm:grid-cols-4">
         <input
           type="date"
           value={dateFilter}
@@ -134,7 +137,7 @@ export default function ActivitiesPage() {
             setPage(1)
             setDateFilter(event.target.value)
           }}
-          className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+          className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
         />
         <input
           type="number"
@@ -145,9 +148,9 @@ export default function ActivitiesPage() {
             setPlaceFilter(event.target.value)
           }}
           placeholder={lang === 'ar' ? 'رقم المكان' : 'Place ID'}
-          className="rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500"
+          className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
         />
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+        <label className="flex min-h-[48px] items-center gap-2 rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-700">
           <input
             type="checkbox"
             checked={availabilityOnly}
@@ -159,6 +162,7 @@ export default function ActivitiesPage() {
           {lang === 'ar' ? 'متاح فقط' : 'Available only'}
         </label>
       </div>
+      </FadeInSection>
 
       {isLoading ? <p className="mt-4 text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading activities...'}</p> : null}
       {isSyncingJoined ? (
@@ -173,7 +177,10 @@ export default function ActivitiesPage() {
           const isJoined = joinedSet.has(activity.id)
           const isFull = activity.participants_count >= activity.max_participants && !isJoined
           return (
-            <article key={activity.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <FadeInSection key={activity.id}>
+            <article className="tour-card tour-hover overflow-hidden">
+              <img src={getActivityImage(activity.title)} alt={activity.title} className="h-40 w-full object-cover" />
+              <div className="p-4">
               <h2 className="text-lg font-semibold text-slate-900">{activity.title}</h2>
               <p className="mt-1 text-sm text-slate-600">{activity.description}</p>
               <p className="mt-2 text-xs text-slate-500">{new Date(activity.date_time).toLocaleString()}</p>
@@ -186,7 +193,7 @@ export default function ActivitiesPage() {
               <button
                 onClick={() => toggleJoin(activity.id)}
                 disabled={isFull || joiningActivityId === activity.id}
-                className="mt-3 rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`mt-3 min-h-[40px] rounded-xl px-3 py-2 text-xs font-medium ${isJoined ? 'border border-[#FF7043] text-[#FF7043]' : 'bg-[#2E7D32] text-white'} disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 {joiningActivityId === activity.id
                   ? lang === 'ar'
@@ -200,12 +207,14 @@ export default function ActivitiesPage() {
                       ? 'انضمام'
                       : 'Join'}
               </button>
+              </div>
             </article>
+            </FadeInSection>
           )
         })}
       </section>
 
-      <div className="mt-6 flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
+      <div className="tour-card mt-6 flex items-center justify-between p-4 text-sm text-slate-700">
         <p>
           {lang === 'ar' ? 'الصفحة' : 'Page'} {page} / {totalPages}
         </p>
@@ -213,14 +222,14 @@ export default function ActivitiesPage() {
           <button
             disabled={page <= 1}
             onClick={() => setPage((previous) => Math.max(1, previous - 1))}
-            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-50"
+            className="rounded-xl border border-emerald-200 px-3 py-2 disabled:opacity-50"
           >
             {lang === 'ar' ? 'السابق' : 'Prev'}
           </button>
           <button
             disabled={page >= totalPages}
             onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
-            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-50"
+            className="rounded-xl border border-emerald-200 px-3 py-2 disabled:opacity-50"
           >
             {lang === 'ar' ? 'التالي' : 'Next'}
           </button>

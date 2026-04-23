@@ -53,6 +53,21 @@ cd backend
 alembic revision --autogenerate -m "describe change"
 ```
 
+### Seed demo data (places + activities)
+
+After migrations, seed tourism demo content:
+
+```bash
+cd backend
+python -m scripts.seed_demo_data
+```
+
+This script is idempotent and creates:
+
+- 12 places in Guelma (nature, culture, cafés, sports, thermal spots)
+- 10 upcoming activities (football, hiking, meetup, wellness, etc.)
+- 1 organizer account used as activity owner
+
 ### Backend dependencies
 
 - PostgreSQL (required)

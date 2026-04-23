@@ -15,6 +15,8 @@ L.Icon.Default.mergeOptions({
 export interface MapMarker {
   id: string
   title: string
+  imageUrl?: string
+  category?: string
   description?: string
   coordinates: { lat: number; lng: number }
   mapsUrl?: string
@@ -42,29 +44,38 @@ export default function LeafletMap({ markers, zoom = 13 }: LeafletMapProps) {
       {markers.map((marker) => (
         <Marker key={marker.id} position={[marker.coordinates.lat, marker.coordinates.lng]}>
           <Popup>
-            <strong>{marker.title}</strong>
-            {marker.description ? (
-              <>
-                <br />
-                <span style={{ fontSize: '12px', color: '#555' }}>{marker.description}</span>
-              </>
-            ) : null}
-            {marker.mapsUrl ? (
-              <>
-                <br />
-                <a href={marker.mapsUrl} target="_blank" rel="noopener noreferrer">
-                  {lang === 'ar' ? 'افتح في الخرائط' : 'Open in Maps'}
-                </a>
-              </>
-            ) : null}
-            {marker.detailsUrl ? (
-              <>
-                <br />
-                <a href={marker.detailsUrl}>
-                  {lang === 'ar' ? 'عرض التفاصيل' : 'View details'}
-                </a>
-              </>
-            ) : null}
+            <article className="w-52 overflow-hidden rounded-xl border border-emerald-100 bg-white">
+              {marker.imageUrl ? (
+                <img
+                  src={marker.imageUrl}
+                  alt={marker.title}
+                  className="h-24 w-full object-cover"
+                />
+              ) : null}
+              <div className="space-y-1 p-2.5">
+                {marker.category ? (
+                  <p className="inline-flex rounded-full bg-[#eaf6ef] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#2E7D32]">
+                    {marker.category}
+                  </p>
+                ) : null}
+                <h3 className="text-sm font-semibold text-slate-900">{marker.title}</h3>
+                {marker.description ? (
+                  <p className="text-xs text-slate-600">{marker.description}</p>
+                ) : null}
+                <div className="mt-2 flex items-center gap-2 text-xs">
+                  {marker.mapsUrl ? (
+                    <a href={marker.mapsUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-slate-200 px-2 py-1 hover:border-[#4FC3F7]">
+                      {lang === 'ar' ? 'الخرائط' : 'Maps'}
+                    </a>
+                  ) : null}
+                  {marker.detailsUrl ? (
+                    <a href={marker.detailsUrl} className="rounded-lg bg-[#2E7D32] px-2 py-1 text-white">
+                      {lang === 'ar' ? 'عرض التفاصيل' : 'View details'}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </article>
           </Popup>
         </Marker>
       ))}
