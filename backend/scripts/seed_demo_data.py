@@ -164,6 +164,50 @@ def _seed_places(session: Session) -> dict[str, Place]:
                 "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1280&q=80&auto=format&fit=crop"
             ],
         },
+        {
+            "name": "Bouchgouf Eco Park",
+            "description": "Green eco-park area with family trails and open nature seating.",
+            "latitude": 36.5318,
+            "longitude": 7.4891,
+            "category": PlaceCategory.NATURE,
+            "theme": "eco park",
+            "images": [
+                "https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=1280&q=80&auto=format&fit=crop"
+            ],
+        },
+        {
+            "name": "Belkheir Sports Arena",
+            "description": "Modern sports ground for football, running, and youth events.",
+            "latitude": 36.4541,
+            "longitude": 7.4469,
+            "category": PlaceCategory.SPORTS,
+            "theme": "training",
+            "images": [
+                "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1280&q=80&auto=format&fit=crop"
+            ],
+        },
+        {
+            "name": "El Hadjar Lake Corner",
+            "description": "Peaceful lakeside corner for light walking and calm views.",
+            "latitude": 36.5164,
+            "longitude": 7.4016,
+            "category": PlaceCategory.RELAXATION,
+            "theme": "lake relax",
+            "images": [
+                "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1280&q=80&auto=format&fit=crop"
+            ],
+        },
+        {
+            "name": "Old Baths Heritage Corner",
+            "description": "Historic heritage corner inspired by traditional bath culture.",
+            "latitude": 36.4668,
+            "longitude": 7.4195,
+            "category": PlaceCategory.CULTURE,
+            "theme": "heritage walk",
+            "images": [
+                "https://images.unsplash.com/photo-1518991791750-74942f4d4c6b?w=1280&q=80&auto=format&fit=crop"
+            ],
+        },
     ]
 
     by_name: dict[str, Place] = {}
@@ -253,6 +297,48 @@ def _seed_activities(session: Session, organizer: User, places: dict[str, Place]
             now + timedelta(days=8, hours=16),
             18,
         ),
+        (
+            "Belkheir Training Run",
+            "Community run session with warm-up and easy intervals.",
+            "Belkheir Sports Arena",
+            now + timedelta(days=9, hours=7),
+            26,
+        ),
+        (
+            "Bouchgouf Nature Meetup",
+            "Family-friendly meetup with short eco walk and picnic.",
+            "Bouchgouf Eco Park",
+            now + timedelta(days=9, hours=11),
+            28,
+        ),
+        (
+            "Mermoura Photo Meetup",
+            "Golden-hour photography meetup with local creators.",
+            "Mermoura Hill Viewpoint",
+            now + timedelta(days=10, hours=17),
+            18,
+        ),
+        (
+            "El Hadjar Calm Walk",
+            "Relaxed evening walk by the lake for wellness and conversation.",
+            "El Hadjar Lake Corner",
+            now + timedelta(days=10, hours=18),
+            22,
+        ),
+        (
+            "Old Baths Culture Talk",
+            "Open-air cultural talk on local heritage and city stories.",
+            "Old Baths Heritage Corner",
+            now + timedelta(days=11, hours=19),
+            24,
+        ),
+        (
+            "Belkheir Football League",
+            "Friendly mini-league football games across mixed teams.",
+            "Belkheir Sports Arena",
+            now + timedelta(days=12, hours=16),
+            30,
+        ),
     ]
 
     for title, description, place_name, date_time, max_participants in activities_data:
@@ -287,7 +373,7 @@ def seed_demo_data() -> None:
         session.commit()
 
     print("✅ Demo data seeded successfully.")
-    print(f"Organizer account: {DEMO_ORGANIZER_EMAIL} / {DEMO_ORGANIZER_PASSWORD}")
+    print(f"Organizer account: {DEMO_ORGANIZER_EMAIL}")
 
 
 if __name__ == "__main__":

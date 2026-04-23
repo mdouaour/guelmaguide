@@ -64,8 +64,8 @@ python -m scripts.seed_demo_data
 
 This script is idempotent and creates:
 
-- 12 places in Guelma (nature, culture, cafés, sports, thermal spots)
-- 10 upcoming activities (football, hiking, meetup, wellness, etc.)
+- 16 places in Guelma (nature, culture, cafés, sports, thermal spots)
+- 16 upcoming activities (football, hiking, meetup, wellness, etc.)
 - 1 organizer account used as activity owner
 
 ### Backend dependencies
