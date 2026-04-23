@@ -3,101 +3,49 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import FadeInSection from '@/components/FadeInSection'
-import { buildPlacePath, getRecommendations, type RecommendationsResponse } from '@/lib/api'
+import { buildPlacePath, getActivities, getPlaces, type Activity, type Place } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { getActivityImage, getCategoryImage } from '@/lib/visuals'
 
-const DEFAULT_COORDINATES = { lat: 36.4621, lng: 7.4247 }
-const DEMO_USER_EMAIL = process.env.NEXT_PUBLIC_DEMO_USER_EMAIL
-const DEMO_USER_PASSWORD = process.env.NEXT_PUBLIC_DEMO_USER_PASSWORD
-
 export default function HomePage() {
   const { lang } = useLanguage()
-  const { user, token, loginUser, registerUser, isAuthLoading } = useAuth()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [authError, setAuthError] = useState<string | null>(null)
-  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false)
-  const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null)
-  const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true)
-  const [recommendationsError, setRecommendationsError] = useState<string | null>(null)
+  const { token } = useAuth()
+  const [places, setPlaces] = useState<Place[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
-    const fetchRecommendations = async (lat: number, lng: number) => {
-      const params = new URLSearchParams({ latitude: String(lat), longitude: String(lng) })
+    const loadPreview = async () => {
+      setIsLoading(true)
+      setPreviewError(null)
       try {
-        const data = await getRecommendations(params, token ?? undefined)
-        if (isMounted) setRecommendations(data)
+        const placesParams = new URLSearchParams({ page: '1', limit: '6' })
+        const activitiesParams = new URLSearchParams({ page: '1', limit: '3' })
+        const [placesResponse, activitiesResponse] = await Promise.all([
+          getPlaces(placesParams),
+          getActivities(activitiesParams),
+        ])
+        if (!isMounted) return
+        setPlaces(placesResponse.results.slice(0, 6))
+        setActivities(activitiesResponse.results.slice(0, 3))
       } catch (error) {
-        if (isMounted) {
-          setRecommendationsError(
-            error instanceof Error
-              ? error.message
-              : lang === 'ar'
-                ? 'تعذر تحميل التوصيات'
-                : 'Failed to load recommendations',
-          )
-        }
+        if (!isMounted) return
+        setPreviewError(error instanceof Error ? error.message : 'Failed to load homepage preview')
       } finally {
-        if (isMounted) setIsRecommendationsLoading(false)
+        if (isMounted) setIsLoading(false)
       }
     }
-
-    if (!navigator.geolocation) {
-      fetchRecommendations(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lng)
-      return () => {
-        isMounted = false
-      }
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        fetchRecommendations(position.coords.latitude, position.coords.longitude)
-      },
-      () => {
-        fetchRecommendations(DEFAULT_COORDINATES.lat, DEFAULT_COORDINATES.lng)
-      },
-      { enableHighAccuracy: false, timeout: 2500, maximumAge: 300000 },
-    )
+    loadPreview()
 
     return () => {
       isMounted = false
     }
-  }, [lang, token])
+  }, [])
 
-  const placeRecommendations = useMemo(
-    () => recommendations?.recommended_places.slice(0, 3) ?? [],
-    [recommendations],
-  )
-  const activityRecommendations = useMemo(
-    () => recommendations?.recommended_activities.slice(0, 3) ?? [],
-    [recommendations],
-  )
-
-  const onSubmitAuth = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setAuthError(null)
-    setIsAuthSubmitting(true)
-    try {
-      if (mode === 'login') {
-        await loginUser(email, password)
-      } else {
-        await registerUser(email, password)
-      }
-      setPassword('')
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Unexpected error')
-    } finally {
-      setIsAuthSubmitting(false)
-    }
-  }
-
-  const onGoogleContinue = () => {
-    setAuthError(lang === 'ar' ? 'تسجيل Google قيد التجهيز.' : 'Google sign-in is coming soon.')
-  }
+  const isLoggedIn = useMemo(() => Boolean(token), [token])
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
@@ -112,156 +60,103 @@ export default function HomePage() {
           />
           <div className="relative p-7 sm:p-10">
             <p className="mb-3 text-xs uppercase tracking-[0.22em] text-white/85">
-              {lang === 'ar' ? 'تجربة سياحية ممتعة' : 'Tourism experience'}
+              {lang === 'ar' ? 'مرحبا بك في قالمة' : 'Welcome to Guelma'}
             </p>
             <h1 className="text-4xl font-semibold text-white sm:text-5xl">Discover Guelma 🌿</h1>
             <p className="mt-3 max-w-2xl text-sm text-white/90 sm:text-base">
               {lang === 'ar'
-                ? 'أماكن طبيعية، أنشطة ممتعة، وتوصيات ذكية تساعدك تعيش قالمة بأجمل شكل.'
-                : 'Nature spots, local activities, and smart recommendations to enjoy Guelma beautifully.'}
+                ? 'استكشف الأماكن الطبيعية والأنشطة المحلية بسهولة، واستخدم الدليل الذكي لتخطيط يومك.'
+                : 'Explore local places and activities with a clear, simple flow, then use the AI guide to plan your day.'}
             </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link
+                href="/discover"
+                className="rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-[#2E7D32] tour-hover"
+              >
+                {lang === 'ar' ? 'استكشف الأماكن' : 'Explore Places'}
+              </Link>
+              <Link
+                href="/activities"
+                className="rounded-xl border border-white/80 px-4 py-2.5 text-sm font-medium text-white tour-hover"
+              >
+                {lang === 'ar' ? 'عرض الأنشطة' : 'View Activities'}
+              </Link>
+            </div>
           </div>
         </section>
       </FadeInSection>
 
-      <FadeInSection className="mt-5 grid gap-3 sm:grid-cols-3">
-        <Link href="/discover" className="tour-card tour-hover min-h-[86px] p-4">
-          <p className="text-xs uppercase text-[#2E7D32]">{lang === 'ar' ? 'خطوة 1' : 'Quick action'}</p>
-          <p className="mt-1 text-base font-semibold text-slate-900">{lang === 'ar' ? 'استكشف الأماكن' : 'Explore Places'}</p>
-        </Link>
-        <Link href="/activities" className="tour-card tour-hover min-h-[86px] p-4">
-          <p className="text-xs uppercase text-[#2E7D32]">{lang === 'ar' ? 'خطوة 2' : 'Quick action'}</p>
-          <p className="mt-1 text-base font-semibold text-slate-900">{lang === 'ar' ? 'الأنشطة' : 'Activities'}</p>
-        </Link>
-        <Link href="/ai" className="tour-card tour-hover min-h-[86px] p-4">
-          <p className="text-xs uppercase text-[#2E7D32]">{lang === 'ar' ? 'خطوة 3' : 'Quick action'}</p>
-          <p className="mt-1 text-base font-semibold text-slate-900">{lang === 'ar' ? 'الدليل الذكي' : 'AI Guide'}</p>
-        </Link>
-      </FadeInSection>
-
-      {DEMO_USER_EMAIL && DEMO_USER_PASSWORD ? (
-        <section className="tour-card mt-4 p-4 text-sm text-slate-700">
-          <p className="font-semibold text-slate-900">{lang === 'ar' ? 'حساب تجريبي' : 'Demo account'}</p>
-          <p className="mt-1">
-            {lang === 'ar' ? 'البريد:' : 'Email:'} <span className="font-mono">{DEMO_USER_EMAIL}</span>
-          </p>
-          <button
-            onClick={() => {
-              setMode('login')
-              setEmail(DEMO_USER_EMAIL)
-              setPassword(DEMO_USER_PASSWORD)
-            }}
-            className="mt-2 rounded-xl border border-emerald-200 px-3 py-2 text-xs hover:border-[#2E7D32]"
-          >
-            {lang === 'ar' ? 'استخدم الحساب التجريبي' : 'Use demo credentials'}
-          </button>
-        </section>
+      {!isLoggedIn ? (
+        <FadeInSection className="mt-5">
+          <section className="rounded-2xl border border-emerald-100 bg-white p-4 text-sm text-slate-700">
+            {lang === 'ar'
+              ? 'يمكنك التصفح بدون تسجيل. يلزم تسجيل الدخول فقط للانضمام للأنشطة أو إنشاء نشاط.'
+              : 'Browse freely without login. Login is only required when you join or create an activity.'}
+            <Link href="/auth" className="ml-2 text-[#2E7D32] underline">
+              {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
+            </Link>
+          </section>
+        </FadeInSection>
       ) : null}
 
-      {!user && !isAuthLoading ? (
-        <section className="tour-card mt-6 p-5">
-          <div className="mb-3 flex gap-2 text-sm">
-            <button
-              onClick={() => setMode('login')}
-              className={`rounded-xl px-3 py-2 ${mode === 'login' ? 'bg-[#2E7D32] text-white' : 'border border-emerald-200 text-slate-700'}`}
-            >
-              {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
-            </button>
-            <button
-              onClick={() => setMode('register')}
-              className={`rounded-xl px-3 py-2 ${mode === 'register' ? 'bg-[#2E7D32] text-white' : 'border border-emerald-200 text-slate-700'}`}
-            >
-              {lang === 'ar' ? 'إنشاء حساب' : 'Register'}
-            </button>
-          </div>
-          <form onSubmit={onSubmitAuth} className="grid gap-3 sm:grid-cols-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="email@example.com"
-              required
-              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder={lang === 'ar' ? 'كلمة المرور' : 'Password'}
-              required
-              className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
-            />
-            <button
-              type="submit"
-              disabled={isAuthSubmitting}
-              className="rounded-xl bg-[#2E7D32] px-4 py-3 text-sm font-medium text-white tour-hover disabled:opacity-50"
-            >
-              {mode === 'login' ? (lang === 'ar' ? 'دخول' : 'Sign in') : lang === 'ar' ? 'تسجيل' : 'Create account'}
-            </button>
-          </form>
-          <button
-            type="button"
-            onClick={onGoogleContinue}
-            className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl border border-[#4FC3F7] bg-[#f2fbff] px-4 py-2 text-sm font-medium text-slate-700 hover:bg-[#e8f8ff]"
-          >
-            {lang === 'ar' ? 'المتابعة عبر Google' : 'Continue with Google'}
-          </button>
-          {authError ? <p className="mt-2 text-sm text-rose-600">{authError}</p> : null}
-        </section>
-      ) : isAuthLoading ? (
-        <section className="tour-card mt-6 p-5 text-sm text-slate-600">
-          {lang === 'ar' ? 'جاري تحميل الجلسة...' : 'Loading session...'}
-        </section>
-      ) : (
-        <section className="mt-6 rounded-2xl border border-[#4FC3F7] bg-[#ecf9ff] p-4 text-sm text-slate-800">
-          {lang === 'ar' ? `مرحباً ${user?.email ?? ''}` : `Welcome ${user?.email ?? ''}`}
-        </section>
-      )}
-
       <section className="mt-8">
-        <h2 className="text-xl font-semibold text-slate-900">{lang === 'ar' ? 'توصيات مميزة' : 'Recommended for you'}</h2>
-        {isRecommendationsLoading ? <p className="mt-2 text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p> : null}
-        {recommendationsError ? <p className="mt-2 text-sm text-rose-600">{recommendationsError}</p> : null}
-        {!isRecommendationsLoading && !recommendationsError ? (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <article className="tour-card p-4">
-              <h3 className="text-sm font-semibold text-[#2E7D32]">{lang === 'ar' ? 'أفضل الأماكن' : 'Top places'}</h3>
-              <div className="mt-2 space-y-3">
-                {placeRecommendations.map((place) => (
+        <h2 className="text-xl font-semibold text-slate-900">{lang === 'ar' ? 'نظرة سريعة' : 'Preview'}</h2>
+        {isLoading ? <p className="mt-2 text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p> : null}
+        {previewError ? <p className="mt-2 text-sm text-rose-600">{previewError}</p> : null}
+        {!isLoading && !previewError ? (
+          <div className="mt-4 grid gap-6 lg:grid-cols-2">
+            <article>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-[#2E7D32]">
+                {lang === 'ar' ? 'أماكن مميزة' : 'Places'}
+              </h3>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                {places.map((place) => (
                   <Link key={place.id} href={buildPlacePath(place)} className="tour-card tour-hover block overflow-hidden">
                     <img src={getCategoryImage(place.category)} alt={place.name} className="h-28 w-full object-cover" />
                     <div className="p-3">
                       <p className="inline-flex rounded-full bg-[#eaf6ef] px-2 py-0.5 text-[10px] uppercase text-[#2E7D32]">{place.category}</p>
                       <p className="mt-1 font-medium text-slate-900">{place.name}</p>
-                      <p className="text-xs text-slate-600">{place.theme} · {place.distance_km}km</p>
                     </div>
                   </Link>
                 ))}
               </div>
             </article>
-            <article className="tour-card p-4">
-              <h3 className="text-sm font-semibold text-[#FF7043]">{lang === 'ar' ? 'أنشطة مناسبة' : 'Suggested activities'}</h3>
-              <div className="mt-2 space-y-3">
-                {activityRecommendations.map((activity) => (
-                  <Link
-                    key={activity.id}
-                    href={buildPlacePath({ id: activity.place_id, name: activity.place_name })}
-                    className="tour-card tour-hover block overflow-hidden"
-                  >
-                    <img src={getActivityImage(activity.title)} alt={activity.title} className="h-28 w-full object-cover" />
+            <article>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-[#FF7043]">
+                {lang === 'ar' ? 'أنشطة قادمة' : 'Activities'}
+              </h3>
+              <div className="mt-3 space-y-3">
+                {activities.map((activity) => (
+                  <article key={activity.id} className="tour-card overflow-hidden">
+                    <img src={getActivityImage(activity.title)} alt={activity.title} className="h-24 w-full object-cover" />
                     <div className="p-3">
-                      <p className="inline-flex rounded-full bg-[#fff2ed] px-2 py-0.5 text-[10px] uppercase text-[#FF7043]">{lang === 'ar' ? 'نشاط' : 'Activity'}</p>
-                      <p className="mt-1 font-medium text-slate-900">{activity.title}</p>
+                      <p className="font-medium text-slate-900">{activity.title}</p>
                       <p className="text-xs text-slate-600">{new Date(activity.date_time).toLocaleString()}</p>
-                      <p className="text-xs text-slate-600">{activity.place_name}</p>
                     </div>
-                  </Link>
+                  </article>
                 ))}
               </div>
             </article>
           </div>
         ) : null}
       </section>
+
+      <FadeInSection className="mt-8">
+        <section className="tour-card p-5">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#2E7D32]">{lang === 'ar' ? 'الدليل الذكي' : 'AI Guide'}</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+            {lang === 'ar' ? 'اقترح لي أفضل الأماكن والأنشطة' : 'Get smart place and activity suggestions'}
+          </h2>
+          <p className="mt-2 text-sm text-slate-600">
+            {lang === 'ar'
+              ? 'استخدم الدليل الذكي للحصول على توصيات سريعة حسب اهتماماتك.'
+              : 'Use the AI guide for quick recommendations based on your interests.'}
+          </p>
+          <Link href="/ai" className="mt-4 inline-flex rounded-xl bg-[#2E7D32] px-4 py-2 text-sm font-medium text-white tour-hover">
+            {lang === 'ar' ? 'جرب الدليل الذكي' : 'Try AI Guide'}
+          </Link>
+        </section>
+      </FadeInSection>
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import MapClient from '@/components/MapClient'
 import FadeInSection from '@/components/FadeInSection'
 import { buildPlacePath, getPlaces, type Place } from '@/lib/api'
@@ -13,7 +14,8 @@ const limit = 12
 
 export default function DiscoverPage() {
   const { lang } = useLanguage()
-  const [query, setQuery] = useState('')
+  const searchParams = useSearchParams()
+  const [query, setQuery] = useState(searchParams.get('keyword') ?? '')
   const [theme, setTheme] = useState('')
   const [category, setCategory] = useState<(typeof categories)[number]>('all')
   const [page, setPage] = useState(1)
@@ -21,6 +23,12 @@ export default function DiscoverPage() {
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const keywordFromUrl = searchParams.get('keyword') ?? ''
+
+  useEffect(() => {
+    setPage(1)
+    setQuery(keywordFromUrl)
+  }, [keywordFromUrl])
 
   useEffect(() => {
     let isMounted = true
