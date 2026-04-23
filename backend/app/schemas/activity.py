@@ -6,6 +6,9 @@ from pydantic import BaseModel, Field, field_validator
 if TYPE_CHECKING:
     from app.models.activity import Activity
 
+_ALLOWED_MOODS = {"relax", "move", "social", "discover"}
+_ALLOWED_VISIBILITIES = {"public", "private"}
+
 
 class ActivityBase(BaseModel):
     title: str = Field(min_length=3, max_length=255)
@@ -24,7 +27,22 @@ class ActivityBase(BaseModel):
 
 
 class ActivityCreate(ActivityBase):
-    pass
+    mood: str | None = None
+    visibility: str = "public"
+
+    @field_validator("mood")
+    @classmethod
+    def validate_mood(cls, value: str | None) -> str | None:
+        if value is not None and value not in _ALLOWED_MOODS:
+            raise ValueError(f"mood must be one of {_ALLOWED_MOODS}")
+        return value
+
+    @field_validator("visibility")
+    @classmethod
+    def validate_visibility(cls, value: str) -> str:
+        if value not in _ALLOWED_VISIBILITIES:
+            raise ValueError(f"visibility must be one of {_ALLOWED_VISIBILITIES}")
+        return value
 
 
 class ActivityRead(ActivityBase):
@@ -33,7 +51,13 @@ class ActivityRead(ActivityBase):
     participants_count: int
     created_at: datetime
     updated_at: datetime
-
+    mood: str | None = None
+    visibility: str = "public"
+    approval_status: str = "approved"
+    is_recurring: bool = False
+    recurrence_rule: str | None = None
+    place_name: str = ""
+    organizer_verified: bool = False
     model_config = {"from_attributes": True}
 
 
@@ -41,7 +65,6 @@ class ActivityRegistrationRead(BaseModel):
     user_id: int
     activity_id: int
     created_at: datetime
-
     model_config = {"from_attributes": True}
 
 
@@ -52,7 +75,12 @@ class PaginatedActivitiesResponse(BaseModel):
     results: list[ActivityRead]
 
 
-def to_activity_read(activity: "Activity", participants_count: int) -> ActivityRead:
+def to_activity_read(
+    activity: "Activity",
+    participants_count: int,
+    place_name: str = "",
+    organizer_verified: bool = False,
+) -> ActivityRead:
     return ActivityRead(
         id=activity.id,
         title=activity.title,
@@ -64,4 +92,11 @@ def to_activity_read(activity: "Activity", participants_count: int) -> ActivityR
         participants_count=participants_count,
         created_at=activity.created_at,
         updated_at=activity.updated_at,
+        mood=activity.mood,
+        visibility=activity.visibility,
+        approval_status=activity.approval_status,
+        is_recurring=activity.is_recurring,
+        recurrence_rule=activity.recurrence_rule,
+        place_name=place_name,
+        organizer_verified=organizer_verified,
     )

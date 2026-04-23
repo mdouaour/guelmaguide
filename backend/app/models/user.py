@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, String
+from sqlalchemy import Boolean, CheckConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import TimestampedBase
@@ -32,6 +32,7 @@ class User(TimestampedBase):
     role: Mapped[UserRole] = mapped_column(
         String(MAX_ROLE_LENGTH), default=UserRole.VISITOR, nullable=False
     )
+    organizer_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     organized_activities: Mapped[list["Activity"]] = relationship(
         back_populates="organizer",
         foreign_keys="Activity.organizer_id",

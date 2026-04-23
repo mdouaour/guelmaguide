@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, CheckConstraint, Float, Index, String, Text
+from sqlalchemy import Boolean, JSON, CheckConstraint, Float, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import TimestampedBase
@@ -39,4 +39,5 @@ class Place(TimestampedBase):
     category: Mapped[PlaceCategory] = mapped_column(String(32), index=True, nullable=False)
     theme: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     images: Mapped[list[str]] = mapped_column(JSON, default=lambda: [], nullable=False)
+    featured: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     activities: Mapped[list["Activity"]] = relationship(back_populates="place")

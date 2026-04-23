@@ -34,7 +34,14 @@ router = APIRouter()
 
 
 def _to_activity_read(db: Session, activity: Activity) -> ActivityRead:
-    return to_activity_read(activity, get_activity_participants_count(db, activity.id))
+    place_name = activity.place.name if activity.place else ""
+    organizer_verified = activity.organizer.organizer_verified if activity.organizer else False
+    return to_activity_read(
+        activity,
+        get_activity_participants_count(db, activity.id),
+        place_name=place_name,
+        organizer_verified=organizer_verified,
+    )
 
 
 @router.post("", response_model=ActivityRead, status_code=status.HTTP_201_CREATED)
@@ -58,13 +65,15 @@ def get_activities(
     place: Annotated[int | None, Query(ge=1)] = None,
     availability: Annotated[bool, Query()] = False,
     category: Annotated[PlaceCategory | None, Query()] = None,
+    mood: Annotated[str | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginatedActivitiesResponse:
     cache_key = (
         "activities:list:"
         f"date={date_filter}:place={place}:availability={availability}:"
-        f"category={category.value if category else ''}:page={page}:limit={limit}"
+        f"category={category.value if category else ''}:mood={mood or ''}:"
+        f"page={page}:limit={limit}"
     )
     cached = get_cached_json(cache_key)
     if cached is not None:
@@ -76,10 +85,20 @@ def get_activities(
         place_id=place,
         availability_only=availability,
         category=category,
+        mood=mood,
+        include_non_public=False,
         page=page,
         limit=limit,
     )
-    results = [to_activity_read(activity, participants_count) for activity, participants_count in rows]
+    results = [
+        to_activity_read(
+            activity,
+            participants_count,
+            place_name=activity.place.name if activity.place else "",
+            organizer_verified=activity.organizer.organizer_verified if activity.organizer else False,
+        )
+        for activity, participants_count in rows
+    ]
     response_payload = PaginatedActivitiesResponse(
         total=total, page=page, limit=limit, results=results
     )
