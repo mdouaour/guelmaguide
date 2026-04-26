@@ -6,33 +6,41 @@ import FadeInSection from '@/components/FadeInSection'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 
-const DEMO_USER_EMAIL = process.env.NEXT_PUBLIC_DEMO_USER_EMAIL
-const DEMO_USER_PASSWORD = process.env.NEXT_PUBLIC_DEMO_USER_PASSWORD
-
 export default function AuthPage() {
   const { lang } = useLanguage()
-  const { user, loginUser, registerUser, isAuthLoading } = useAuth()
+  const { user, profile, loginUser, registerUser, logout, isAuthLoading } = useAuth()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
   const onSubmitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setAuthError(null)
+    setRegistrationSuccess(false)
     setIsSubmitting(true)
     try {
       if (mode === 'login') {
         await loginUser(email, password)
       } else {
         await registerUser(email, password)
+        setRegistrationSuccess(true)
       }
       setPassword('')
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Unexpected error')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Failed to logout')
     }
   }
 
@@ -48,25 +56,6 @@ export default function AuthPage() {
           </p>
         </header>
 
-        {DEMO_USER_EMAIL && DEMO_USER_PASSWORD ? (
-          <section className="tour-card mt-4 p-4 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900">{lang === 'ar' ? 'حساب تجريبي' : 'Demo account'}</p>
-            <p className="mt-1">
-              {lang === 'ar' ? 'البريد:' : 'Email:'} <span className="font-mono">{DEMO_USER_EMAIL}</span>
-            </p>
-            <button
-              onClick={() => {
-                setMode('login')
-                setEmail(DEMO_USER_EMAIL)
-                setPassword(DEMO_USER_PASSWORD)
-              }}
-              className="mt-2 rounded-xl border border-emerald-200 px-3 py-2 text-xs hover:border-[#2E7D32]"
-            >
-              {lang === 'ar' ? 'استخدم الحساب التجريبي' : 'Use demo credentials'}
-            </button>
-          </section>
-        ) : null}
-
         {isAuthLoading ? (
           <section className="tour-card mt-6 p-5 text-sm text-slate-600">
             {lang === 'ar' ? 'جاري تحميل الجلسة...' : 'Loading session...'}
@@ -76,6 +65,12 @@ export default function AuthPage() {
             <p className="font-medium text-slate-900">
               {lang === 'ar' ? `مرحباً ${user.email}` : `You are logged in as ${user.email}`}
             </p>
+            {profile ? (
+              <p className="mt-1 text-xs text-slate-500">
+                {lang === 'ar' ? 'الدور:' : 'Role:'} {profile.role}
+                {profile.organizer_verified ? (lang === 'ar' ? ' (موثق)' : ' (verified)') : ''}
+              </p>
+            ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
               <Link href="/activities" className="rounded-xl bg-[#2E7D32] px-3 py-2 text-white">
                 {lang === 'ar' ? 'اذهب للأنشطة' : 'Go to Activities'}
@@ -83,24 +78,47 @@ export default function AuthPage() {
               <Link href="/my-activities" className="rounded-xl border border-emerald-200 px-3 py-2 hover:border-[#2E7D32]">
                 {lang === 'ar' ? 'أنشطتي' : 'My Activities'}
               </Link>
+              <button
+                onClick={handleLogout}
+                className="rounded-xl border border-rose-200 px-3 py-2 text-rose-600 hover:border-rose-400"
+              >
+                {lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}
+              </button>
             </div>
           </section>
         ) : (
           <section className="tour-card mt-6 p-5">
             <div className="mb-3 flex gap-2 text-sm">
               <button
-                onClick={() => setMode('login')}
+                onClick={() => {
+                  setMode('login')
+                  setRegistrationSuccess(false)
+                  setAuthError(null)
+                }}
                 className={`rounded-xl px-3 py-2 ${mode === 'login' ? 'bg-[#2E7D32] text-white' : 'border border-emerald-200 text-slate-700'}`}
               >
                 {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
               </button>
               <button
-                onClick={() => setMode('register')}
+                onClick={() => {
+                  setMode('register')
+                  setRegistrationSuccess(false)
+                  setAuthError(null)
+                }}
                 className={`rounded-xl px-3 py-2 ${mode === 'register' ? 'bg-[#2E7D32] text-white' : 'border border-emerald-200 text-slate-700'}`}
               >
                 {lang === 'ar' ? 'إنشاء حساب' : 'Register'}
               </button>
             </div>
+
+            {registrationSuccess ? (
+              <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                {lang === 'ar'
+                  ? 'تم إنشاء الحساب! تحقق من بريدك الإلكتروني لتأكيد الحساب.'
+                  : 'Account created! Check your email to confirm your account.'}
+              </div>
+            ) : null}
+
             <form onSubmit={onSubmitAuth} className="grid gap-3 sm:grid-cols-3">
               <input
                 type="email"
@@ -116,6 +134,7 @@ export default function AuthPage() {
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder={lang === 'ar' ? 'كلمة المرور' : 'Password'}
                 required
+                minLength={6}
                 className="rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-[#2E7D32]"
               />
               <button
@@ -123,7 +142,11 @@ export default function AuthPage() {
                 disabled={isSubmitting}
                 className="rounded-xl bg-[#2E7D32] px-4 py-3 text-sm font-medium text-white tour-hover disabled:opacity-50"
               >
-                {mode === 'login' ? (lang === 'ar' ? 'دخول' : 'Sign in') : lang === 'ar' ? 'تسجيل' : 'Create account'}
+                {isSubmitting
+                  ? (lang === 'ar' ? 'جاري...' : 'Loading...')
+                  : mode === 'login'
+                    ? (lang === 'ar' ? 'دخول' : 'Sign in')
+                    : (lang === 'ar' ? 'تسجيل' : 'Create account')}
               </button>
             </form>
             {authError ? <p className="mt-2 text-sm text-rose-600">{authError}</p> : null}

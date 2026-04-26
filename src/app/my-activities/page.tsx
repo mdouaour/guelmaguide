@@ -11,7 +11,7 @@ const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000
 
 export default function MyActivitiesPage() {
   const { lang } = useLanguage()
-  const { token } = useAuth()
+  const { user } = useAuth()
   const [activities, setActivities] = useState<Activity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -19,7 +19,7 @@ export default function MyActivitiesPage() {
   useEffect(() => {
     let isMounted = true
     const loadMyActivities = async () => {
-      if (!token) {
+      if (!user) {
         setActivities([])
         setIsLoading(false)
         return
@@ -27,7 +27,7 @@ export default function MyActivitiesPage() {
       setIsLoading(true)
       setError(null)
       try {
-        const response = await getMyActivities(token)
+        const response = await getMyActivities()
         if (!isMounted) return
         const sorted = [...response].sort(
           (left, right) => new Date(left.date_time).getTime() - new Date(right.date_time).getTime(),
@@ -44,7 +44,7 @@ export default function MyActivitiesPage() {
     return () => {
       isMounted = false
     }
-  }, [token])
+  }, [user])
 
   const hasSoonActivity = useMemo(() => {
     const now = Date.now()
@@ -64,7 +64,7 @@ export default function MyActivitiesPage() {
           </p>
         </header>
 
-        {!token ? (
+        {!user ? (
           <section className="tour-card mt-4 p-4 text-sm text-slate-700">
             <p>{lang === 'ar' ? 'يلزم تسجيل الدخول لعرض أنشطتك.' : 'Login is required to view your activities.'}</p>
             <Link href="/auth" className="mt-2 inline-flex rounded-xl bg-[#2E7D32] px-3 py-2 text-white">
@@ -73,7 +73,7 @@ export default function MyActivitiesPage() {
           </section>
         ) : null}
 
-        {token && hasSoonActivity ? (
+        {user && hasSoonActivity ? (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             Your activity is coming soon
           </div>
@@ -82,7 +82,7 @@ export default function MyActivitiesPage() {
         {isLoading ? <p className="mt-4 text-sm text-slate-600">{lang === 'ar' ? 'جاري التحميل...' : 'Loading...'}</p> : null}
         {error ? <p className="mt-4 text-sm text-rose-600">{error}</p> : null}
 
-        {token && !isLoading && !error ? (
+        {user && !isLoading && !error ? (
           <section className="mt-5 space-y-3">
             {activities.map((activity) => {
               const isUpcoming = new Date(activity.date_time).getTime() > Date.now()

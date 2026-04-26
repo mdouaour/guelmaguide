@@ -1,16 +1,8 @@
-function normalizeApiBaseUrl(value: string) {
-  const withoutTrailingSlashes = value.replace(/\/+$/, '')
-  return withoutTrailingSlashes.endsWith('/api/v1')
-    ? withoutTrailingSlashes
-    : `${withoutTrailingSlashes}/api/v1`
-}
-
-export const API_BASE_URL = normalizeApiBaseUrl(
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1',
-)
+// API client for GuelmaGuide - now using local Next.js API routes backed by Supabase
 
 export interface ApiErrorPayload {
   detail?: string
+  error?: string
 }
 
 export class ApiError extends Error {
@@ -22,19 +14,18 @@ export class ApiError extends Error {
   }
 }
 
-async function apiRequest<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   headers.set('Content-Type', 'application/json')
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: 'no-store' })
+  const response = await fetch(`/api${path}`, { ...init, headers, cache: 'no-store' })
+  
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`
     try {
       const payload = (await response.json()) as ApiErrorPayload
       if (payload.detail) message = payload.detail
+      if (payload.error) message = payload.error
     } catch {
       // no-op
     }
@@ -46,22 +37,12 @@ async function apiRequest<T>(path: string, init: RequestInit = {}, token?: strin
 }
 
 export interface AuthUser {
-  id: number
+  id: string
   email: string
   role: 'visitor' | 'organizer' | 'admin'
   organizer_verified: boolean
   created_at: string
   updated_at: string
-}
-
-export interface AuthResponse {
-  access_token: string
-  token_type: string
-  expires_in: number
-}
-
-export interface RegisterResponse extends AuthResponse {
-  user: AuthUser
 }
 
 export interface Place {
@@ -73,6 +54,7 @@ export interface Place {
   category: string
   theme: string
   images: string[]
+  featured?: boolean
   created_at: string
   updated_at: string
 }
@@ -107,7 +89,7 @@ export interface Activity {
   description: string
   place_id: number
   place_name: string
-  organizer_id: number
+  organizer_id: string
   date_time: string
   max_participants: number
   participants_count: number
@@ -168,24 +150,6 @@ export interface RecommendationsResponse {
   recommended_activities: RecommendationActivity[]
 }
 
-export function register(payload: { email: string; password: string }) {
-  return apiRequest<RegisterResponse>('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
-
-export function login(payload: { email: string; password: string }) {
-  return apiRequest<AuthResponse>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
-
-export function getMe(token: string) {
-  return apiRequest<AuthUser>('/auth/me', {}, token)
-}
-
 export function getPlaces(params: URLSearchParams) {
   return apiRequest<PaginatedResponse<Place>>(`/places?${params.toString()}`)
 }
@@ -198,33 +162,40 @@ export function getActivities(params: URLSearchParams) {
   return apiRequest<PaginatedResponse<Activity>>(`/activities?${params.toString()}`)
 }
 
-export function getMyActivities(token: string) {
-  return apiRequest<Activity[]>('/users/me/activities', {}, token)
+export function getMyActivities() {
+  return apiRequest<Activity[]>('/users/me/activities')
 }
 
-export function joinActivity(activityId: number, token: string) {
-  return apiRequest<{ user_id: number; activity_id: number; created_at: string }>(
+export function joinActivity(activityId: number) {
+  return apiRequest<{ user_id: string; activity_id: number; created_at: string }>(
     `/activities/${activityId}/join`,
     { method: 'POST' },
-    token,
   )
 }
 
-export function createActivity(payload: ActivityCreatePayload, token: string) {
+export function createActivity(payload: ActivityCreatePayload) {
   return apiRequest<Activity>(
     '/activities',
     {
       method: 'POST',
       body: JSON.stringify(payload),
     },
-    token,
   )
 }
 
-export function leaveActivity(activityId: number, token: string) {
-  return apiRequest<void>(`/activities/${activityId}/leave`, { method: 'DELETE' }, token)
+export function leaveActivity(activityId: number) {
+  return apiRequest<void>(`/activities/${activityId}/leave`, { method: 'DELETE' })
 }
 
-export function getRecommendations(params: URLSearchParams, token?: string) {
-  return apiRequest<RecommendationsResponse>(`/ai/recommendations?${params.toString()}`, {}, token)
+export function getMe() {
+  return apiRequest<AuthUser>('/auth/me')
+}
+
+// Recommendations - placeholder for now, can be implemented later with AI
+export function getRecommendations(params: URLSearchParams) {
+  // Return empty recommendations for now
+  return Promise.resolve<RecommendationsResponse>({
+    recommended_places: [],
+    recommended_activities: [],
+  })
 }
