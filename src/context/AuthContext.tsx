@@ -1,76 +1,146 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { getMe, login, register, type AuthUser } from '@/lib/api'
+import { createClient } from '@/lib/supabase/client'
+import type { User } from '@supabase/supabase-js'
 
-const TOKEN_STORAGE_KEY = 'guelmaguide:access-token'
+interface AuthUser {
+  id: string
+  email: string
+  role: 'visitor' | 'organizer' | 'admin'
+  organizer_verified: boolean
+}
 
 interface AuthContextValue {
-  token: string | null
-  user: AuthUser | null
+  user: User | null
+  profile: AuthUser | null
   isAuthLoading: boolean
   loginUser: (email: string, password: string) => Promise<void>
   registerUser: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null)
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<AuthUser | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
 
+  const supabase = createClient()
+
   useEffect(() => {
-    const storedToken = window.localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (!storedToken) {
-      Promise.resolve().then(() => setIsAuthLoading(false))
-      return
+    // Get initial session
+    const initAuth = async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        setUser(currentUser)
+        
+        if (currentUser) {
+          // Fetch profile
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single()
+          
+          if (profileData) {
+            setProfile({
+              id: profileData.id,
+              email: profileData.email,
+              role: profileData.role,
+              organizer_verified: profileData.organizer_verified,
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+      } finally {
+        setIsAuthLoading(false)
+      }
     }
 
-    getMe(storedToken)
-      .then((me) => {
-        setToken(storedToken)
-        setUser(me)
-      })
-      .catch(() => {
-        window.localStorage.removeItem(TOKEN_STORAGE_KEY)
-        setToken(null)
-      })
-      .finally(() => setIsAuthLoading(false))
-  }, [])
+    initAuth()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+
+        if (currentUser) {
+          // Fetch profile on auth change
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single()
+
+          if (profileData) {
+            setProfile({
+              id: profileData.id,
+              email: profileData.email,
+              role: profileData.role,
+              organizer_verified: profileData.organizer_verified,
+            })
+          }
+        } else {
+          setProfile(null)
+        }
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
 
   const loginUser = async (email: string, password: string) => {
-    const response = await login({ email, password })
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, response.access_token)
-    setToken(response.access_token)
-    const me = await getMe(response.access_token)
-    setUser(me)
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      throw new Error(error.message)
+    }
   }
 
   const registerUser = async (email: string, password: string) => {
-    const response = await register({ email, password })
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, response.access_token)
-    setToken(response.access_token)
-    setUser(response.user)
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo:
+          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+          `${window.location.origin}/auth/callback`,
+      },
+    })
+
+    if (error) {
+      throw new Error(error.message)
+    }
   }
 
-  const logout = () => {
-    window.localStorage.removeItem(TOKEN_STORAGE_KEY)
-    setToken(null)
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      throw new Error(error.message)
+    }
     setUser(null)
+    setProfile(null)
   }
 
   const value = useMemo(
     () => ({
-      token,
       user,
+      profile,
       isAuthLoading,
       loginUser,
       registerUser,
       logout,
     }),
-    [token, user, isAuthLoading],
+    [user, profile, isAuthLoading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
