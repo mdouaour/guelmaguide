@@ -58,6 +58,24 @@ export function setAuthCookies(
   })
 }
 
+export async function proxyJson(backendRes: Response): Promise<NextResponse> {
+  if (backendRes.status === 204) {
+    return new NextResponse(null, { status: 204 })
+  }
+
+  let data: unknown
+  try {
+    data = await backendRes.json()
+  } catch {
+    return NextResponse.json(
+      { detail: `Upstream returned non-JSON response (status ${backendRes.status})` },
+      { status: 502 },
+    )
+  }
+
+  return NextResponse.json(data, { status: backendRes.status })
+}
+
 export function clearAuthCookies(response: NextResponse): void {
   response.cookies.set(AUTH_COOKIE, '', {
     httpOnly: true,

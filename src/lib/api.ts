@@ -52,6 +52,7 @@ async function localApiRequest<T>(path: string, init: RequestInit = {}): Promise
   headers.set('Content-Type', 'application/json')
 
   const method = (init.method ?? 'GET').toUpperCase()
+  // Attach the CSRF double-submit token for all state-mutating methods.
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
     const csrfToken = getCsrfToken()
     if (csrfToken) {

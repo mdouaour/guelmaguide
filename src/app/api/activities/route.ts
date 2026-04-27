@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { BACKEND_URL, csrfError, getAuthToken, validateCsrfToken } from '@/lib/server-api'
+import { BACKEND_URL, csrfError, getAuthToken, proxyJson, validateCsrfToken } from '@/lib/server-api'
 
 export async function POST(request: Request): Promise<NextResponse> {
   if (!(await validateCsrfToken(request))) {
@@ -27,6 +27,5 @@ export async function POST(request: Request): Promise<NextResponse> {
     body: JSON.stringify(body),
   })
 
-  const data: unknown = await backendRes.json().catch(() => ({}))
-  return NextResponse.json(data, { status: backendRes.status })
+  return proxyJson(backendRes)
 }
