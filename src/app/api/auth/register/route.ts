@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { BACKEND_URL, setAuthCookies } from '@/lib/server-api'
+import { BACKEND_URL, generateCsrfToken, setAuthCookies } from '@/lib/server-api'
 import type { AuthUser } from '@/lib/api'
 
 interface BackendRegisterResponse {
@@ -29,7 +29,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const data = (await backendRes.json()) as BackendRegisterResponse
-  const csrfToken = crypto.randomUUID()
+  const csrfToken = generateCsrfToken()
 
   const response = NextResponse.json({ user: data.user }, { status: 201 })
   setAuthCookies(response, data.access_token, csrfToken, data.expires_in)

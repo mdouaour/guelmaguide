@@ -16,7 +16,18 @@ export const BACKEND_URL = normalizeBackendUrl(
 
 export const AUTH_COOKIE = 'auth_token'
 export const CSRF_COOKIE = 'csrf_token'
-export const IS_SECURE = process.env.NODE_ENV === 'production'
+// Allow explicit opt-in/out via COOKIE_SECURE env var; fall back to NODE_ENV === 'production'.
+export const IS_SECURE =
+  process.env.COOKIE_SECURE !== undefined
+    ? process.env.COOKIE_SECURE !== 'false'
+    : process.env.NODE_ENV === 'production'
+
+/** Generate a cryptographically random 32-byte hex string for use as a CSRF token. */
+export function generateCsrfToken(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
 
 export async function validateCsrfToken(request: Request): Promise<boolean> {
   const headerToken = request.headers.get('X-CSRF-Token')
