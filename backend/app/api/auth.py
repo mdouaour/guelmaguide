@@ -161,7 +161,11 @@ def reset_password(
         )
 
     email = token_data.get("sub")
-    if not isinstance(email, str) or email != stored_email:
+    if not isinstance(email, str):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
+        )
+    if email != stored_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
         )
