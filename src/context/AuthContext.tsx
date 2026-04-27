@@ -37,8 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await logoutApi()
-    } catch {
-      // no-op — still clear local state
+    } catch (err) {
+      // Server-side session cleanup failed; local state is still cleared.
+      console.error('Logout request failed:', err)
     }
     setUser(null)
   }

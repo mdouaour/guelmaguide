@@ -1,3 +1,4 @@
+import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
@@ -24,9 +25,7 @@ export const IS_SECURE =
 
 /** Generate a cryptographically random 32-byte hex string for use as a CSRF token. */
 export function generateCsrfToken(): string {
-  const bytes = new Uint8Array(32)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return randomBytes(32).toString('hex')
 }
 
 export async function validateCsrfToken(request: Request): Promise<boolean> {
@@ -35,7 +34,9 @@ export async function validateCsrfToken(request: Request): Promise<boolean> {
   const cookieStore = await cookies()
   const cookieToken = cookieStore.get(CSRF_COOKIE)?.value
   if (!cookieToken) return false
-  return headerToken === cookieToken
+  // Use constant-time comparison to prevent timing attacks.
+  if (headerToken.length !== cookieToken.length) return false
+  return timingSafeEqual(Buffer.from(headerToken), Buffer.from(cookieToken))
 }
 
 export function csrfError(): NextResponse {

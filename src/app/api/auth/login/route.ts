@@ -34,10 +34,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   })
 
   if (!meRes.ok) {
-    return NextResponse.json(
-      { detail: `Failed to fetch user after login (status ${meRes.status})` },
-      { status: 500 },
-    )
+    return NextResponse.json({ detail: 'Authentication failed' }, { status: 500 })
   }
 
   const user = (await meRes.json()) as AuthUser
