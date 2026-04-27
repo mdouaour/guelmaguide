@@ -30,6 +30,10 @@ class Settings(BaseSettings):
 
     AI_API_KEY: str | None = None
     MAPS_API_KEY: str | None = None
+    RESEND_API_KEY: str | None = None
+    RESEND_FROM_ADDRESS: str = "Guelma Guide <noreply@guelma.guide>"
+    # Used to build the password-reset link sent via email, e.g. https://guelma.guide
+    FRONTEND_BASE_URL: str = "http://localhost:3000"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

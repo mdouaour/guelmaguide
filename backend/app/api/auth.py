@@ -1,4 +1,5 @@
 import logging
+import secrets
 from datetime import timedelta
 from typing import Annotated
 
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+from app.core.cache import delete_key, get_str, set_str
 from app.core.config import settings
 from app.core.rate_limiter import rate_limit_dependency
 from app.core.security import (
@@ -21,6 +23,7 @@ from app.models import User, UserRole
 from app.schemas.auth import LoginRequest, RegisterRequest, RegisterResponse, TokenResponse
 from app.schemas.user import UserRead
 from app.services.auth_service import authenticate_user, get_user_by_email, register_user
+from app.services.email_service import send_password_reset_email
 
 router = APIRouter()
 
@@ -100,7 +103,12 @@ class PasswordResetConfirm(BaseModel):
 
 
 _PASSWORD_RESET_SCOPE = "password-reset"
-_PASSWORD_RESET_EXPIRE_MINUTES = 30
+_PASSWORD_RESET_EXPIRE_SECONDS = 30 * 60  # 30 minutes
+_REDIS_KEY_PREFIX = "pwd_reset:"
+
+
+def _redis_reset_key(token: str) -> str:
+    return f"{_REDIS_KEY_PREFIX}{token}"
 
 
 @router.post("/request-password-reset", response_model=PasswordResetRequestResponse)
@@ -112,12 +120,13 @@ def request_password_reset(
     if user is not None:
         reset_token = create_access_token(
             subject=payload.email,
-            expires_delta=timedelta(minutes=_PASSWORD_RESET_EXPIRE_MINUTES),
+            expires_delta=timedelta(seconds=_PASSWORD_RESET_EXPIRE_SECONDS),
             extra_claims={"scope": _PASSWORD_RESET_SCOPE},
         )
-        if settings.APP_ENV != "production":
-            # Development only — replace with a real email delivery call in production.
-            logger.debug("Password reset token for %s: %s", payload.email, reset_token)
+        # Store token in Redis as the authoritative one-time use record.
+        set_str(_redis_reset_key(reset_token), payload.email, _PASSWORD_RESET_EXPIRE_SECONDS)
+        # Deliver the link exclusively via email — the token is never returned in the response.
+        send_password_reset_email(payload.email, reset_token)
     # Always return the same response to avoid user enumeration.
     return PasswordResetRequestResponse(
         message="If this email is registered, a reset link will be sent.",
@@ -129,6 +138,17 @@ def reset_password(
     payload: PasswordResetConfirm,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
+    redis_key = _redis_reset_key(payload.token)
+    stored_email = get_str(redis_key)
+    if stored_email is None:
+        # Token is either expired, already used, or was never issued.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token"
+        )
+    # Consume the token immediately — makes it a true one-time-use link.
+    delete_key(redis_key)
+
+    # Validate JWT claims as a secondary defence (e.g. tampered token).
     try:
         token_data = decode_access_token(payload.token)
     except HTTPException as exc:
@@ -143,6 +163,10 @@ def reset_password(
 
     email = token_data.get("sub")
     if not isinstance(email, str):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
+        )
+    if not secrets.compare_digest(email.lower().strip(), stored_email.lower().strip()):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
         )
