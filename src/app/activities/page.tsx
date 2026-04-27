@@ -27,7 +27,7 @@ function toIsoDateTime(value: string) {
 
 export default function ActivitiesPage() {
   const { lang } = useLanguage()
-  const { token } = useAuth()
+  const { user } = useAuth()
   const [dateFilter, setDateFilter] = useState('')
   const [placeFilter, setPlaceFilter] = useState('')
   const [availabilityOnly, setAvailabilityOnly] = useState(false)
@@ -107,13 +107,13 @@ export default function ActivitiesPage() {
   useEffect(() => {
     let isMounted = true
     const syncJoinedActivities = async () => {
-      if (!token) {
+      if (!user) {
         setJoinedIds([])
         return
       }
       setIsSyncingJoined(true)
       try {
-        const joinedActivities = await getMyActivities(token)
+        const joinedActivities = await getMyActivities()
         if (!isMounted) return
         setJoinedIds(joinedActivities.map((activity) => activity.id))
       } catch (err) {
@@ -127,10 +127,10 @@ export default function ActivitiesPage() {
     return () => {
       isMounted = false
     }
-  }, [token])
+  }, [user])
 
   const toggleJoin = async (activityId: number) => {
-    if (!token) {
+    if (!user) {
       setError(lang === 'ar' ? 'يرجى تسجيل الدخول للانضمام.' : 'Please login to join activities.')
       return
     }
@@ -138,10 +138,10 @@ export default function ActivitiesPage() {
       const currentlyJoined = joinedSet.has(activityId)
       setJoiningActivityId(activityId)
       if (currentlyJoined) {
-        await leaveActivity(activityId, token)
+        await leaveActivity(activityId)
         setJoinedIds((previous) => previous.filter((id) => id !== activityId))
       } else {
-        await joinActivity(activityId, token)
+        await joinActivity(activityId)
         setJoinedIds((previous) =>
           previous.includes(activityId) ? previous : [...previous, activityId],
         )
@@ -168,7 +168,7 @@ export default function ActivitiesPage() {
 
   const onCreateActivity = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!token) {
+    if (!user) {
       setError(lang === 'ar' ? 'يرجى تسجيل الدخول أولاً.' : 'Please login first.')
       return
     }
@@ -183,16 +183,13 @@ export default function ActivitiesPage() {
     setIsCreating(true)
     setError(null)
     try {
-      const created = await createActivity(
-        {
-          title: createTitle.trim(),
-          description: createDescription.trim(),
-          place_id: placeId,
-          date_time: isoDateTime,
-          max_participants: maxParticipants,
-        },
-        token,
-      )
+      const created = await createActivity({
+        title: createTitle.trim(),
+        description: createDescription.trim(),
+        place_id: placeId,
+        date_time: isoDateTime,
+        max_participants: maxParticipants,
+      })
       setActivities((previous) => [created, ...previous].slice(0, limit))
       setTotal((previous) => previous + 1)
       setShowCreateForm(false)
@@ -222,14 +219,14 @@ export default function ActivitiesPage() {
             <Link href="/my-activities" className="rounded-xl border border-emerald-200 px-3 py-2 hover:border-[#2E7D32]">
               {lang === 'ar' ? 'أنشطتي' : 'My Activities'}
             </Link>
-            {!token ? (
+            {!user ? (
               <Link href="/auth" className="rounded-xl bg-[#2E7D32] px-3 py-2 text-white">
                 {lang === 'ar' ? 'تسجيل الدخول' : 'Login'}
               </Link>
             ) : null}
             <button
               onClick={() => {
-                if (!token) {
+                if (!user) {
                   setError(lang === 'ar' ? 'يرجى تسجيل الدخول أولاً.' : 'Please login first.')
                   return
                 }

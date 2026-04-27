@@ -7,13 +7,11 @@ import MapClient from '@/components/MapClient'
 import { buildPlacePath, getRecommendations, type RecommendationsResponse } from '@/lib/api'
 import { getCategoryImage } from '@/lib/visuals'
 import { useLanguage } from '@/context/LanguageContext'
-import { useAuth } from '@/context/AuthContext'
 
 const DEFAULT_COORDINATES = { lat: 36.4621, lng: 7.4247 }
 
 export default function AIPage() {
   const { lang } = useLanguage()
-  const { token } = useAuth()
   const [category, setCategory] = useState('')
   const [timeOfDay, setTimeOfDay] = useState<'morning' | 'afternoon' | 'evening' | ''>('')
   const [data, setData] = useState<RecommendationsResponse | null>(null)
@@ -31,7 +29,7 @@ export default function AIPage() {
     if (timeOfDay) params.set('time_of_day', timeOfDay)
 
     try {
-      const response = await getRecommendations(params, token ?? undefined)
+      const response = await getRecommendations(params)
       setData(response)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load recommendations')

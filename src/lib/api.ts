@@ -1,3 +1,5 @@
+import { getCsrfToken } from '@/lib/csrf'
+
 function normalizeApiBaseUrl(value: string) {
   const withoutTrailingSlashes = value.replace(/\/+$/, '')
   return withoutTrailingSlashes.endsWith('/api/v1')
@@ -45,6 +47,34 @@ async function apiRequest<T>(path: string, init: RequestInit = {}, token?: strin
   return (await response.json()) as T
 }
 
+async function localApiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers)
+  headers.set('Content-Type', 'application/json')
+
+  const method = (init.method ?? 'GET').toUpperCase()
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    const csrfToken = getCsrfToken()
+    if (csrfToken) {
+      headers.set('X-CSRF-Token', csrfToken)
+    }
+  }
+
+  const response = await fetch(path, { ...init, headers, cache: 'no-store' })
+  if (!response.ok) {
+    let message = `Request failed with status ${response.status}`
+    try {
+      const payload = (await response.json()) as ApiErrorPayload
+      if (payload.detail) message = payload.detail
+    } catch {
+      // no-op
+    }
+    throw new ApiError(message, response.status)
+  }
+
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+
 export interface AuthUser {
   id: number
   email: string
@@ -54,13 +84,7 @@ export interface AuthUser {
   updated_at: string
 }
 
-export interface AuthResponse {
-  access_token: string
-  token_type: string
-  expires_in: number
-}
-
-export interface RegisterResponse extends AuthResponse {
+export interface AuthSuccessResponse {
   user: AuthUser
 }
 
@@ -169,21 +193,25 @@ export interface RecommendationsResponse {
 }
 
 export function register(payload: { email: string; password: string }) {
-  return apiRequest<RegisterResponse>('/auth/register', {
+  return localApiRequest<AuthSuccessResponse>('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 }
 
 export function login(payload: { email: string; password: string }) {
-  return apiRequest<AuthResponse>('/auth/login', {
+  return localApiRequest<AuthSuccessResponse>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 }
 
-export function getMe(token: string) {
-  return apiRequest<AuthUser>('/auth/me', {}, token)
+export function getMe() {
+  return localApiRequest<AuthUser>('/api/auth/me')
+}
+
+export function logout() {
+  return localApiRequest<void>('/api/auth/logout', { method: 'POST' })
 }
 
 export function getPlaces(params: URLSearchParams) {
@@ -198,33 +226,28 @@ export function getActivities(params: URLSearchParams) {
   return apiRequest<PaginatedResponse<Activity>>(`/activities?${params.toString()}`)
 }
 
-export function getMyActivities(token: string) {
-  return apiRequest<Activity[]>('/users/me/activities', {}, token)
+export function getMyActivities() {
+  return localApiRequest<Activity[]>('/api/users/me/activities')
 }
 
-export function joinActivity(activityId: number, token: string) {
-  return apiRequest<{ user_id: number; activity_id: number; created_at: string }>(
-    `/activities/${activityId}/join`,
+export function joinActivity(activityId: number) {
+  return localApiRequest<{ user_id: number; activity_id: number; created_at: string }>(
+    `/api/activities/${activityId}/join`,
     { method: 'POST' },
-    token,
   )
 }
 
-export function createActivity(payload: ActivityCreatePayload, token: string) {
-  return apiRequest<Activity>(
-    '/activities',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    },
-    token,
-  )
+export function createActivity(payload: ActivityCreatePayload) {
+  return localApiRequest<Activity>('/api/activities', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
-export function leaveActivity(activityId: number, token: string) {
-  return apiRequest<void>(`/activities/${activityId}/leave`, { method: 'DELETE' }, token)
+export function leaveActivity(activityId: number) {
+  return localApiRequest<void>(`/api/activities/${activityId}/leave`, { method: 'DELETE' })
 }
 
-export function getRecommendations(params: URLSearchParams, token?: string) {
-  return apiRequest<RecommendationsResponse>(`/ai/recommendations?${params.toString()}`, {}, token)
+export function getRecommendations(params: URLSearchParams) {
+  return localApiRequest<RecommendationsResponse>(`/api/ai/recommendations?${params.toString()}`)
 }
