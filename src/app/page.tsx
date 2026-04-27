@@ -10,7 +10,7 @@ import { getActivityImage, getCategoryImage } from '@/lib/visuals'
 
 export default function HomePage() {
   const { lang } = useLanguage()
-  const { token } = useAuth()
+  const { user } = useAuth()
   const [places, setPlaces] = useState<Place[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -45,7 +45,7 @@ export default function HomePage() {
     }
   }, [])
 
-  const isLoggedIn = useMemo(() => Boolean(token), [token])
+  const isLoggedIn = useMemo(() => Boolean(user), [user])
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8">
