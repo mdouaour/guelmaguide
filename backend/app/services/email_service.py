@@ -20,10 +20,8 @@ def send_password_reset_email(to_email: str, reset_token: str) -> None:
     """
     if not settings.RESEND_API_KEY:
         logger.warning(
-            "RESEND_API_KEY is not configured — password-reset email not sent to %s", to_email
+            "RESEND_API_KEY is not configured — password-reset email not sent"
         )
-        if settings.APP_ENV != "production":
-            logger.debug("Password reset email would have been sent to %s", to_email)
         return
 
     reset_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/reset-password?token={reset_token}"

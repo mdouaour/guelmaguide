@@ -36,7 +36,6 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!meRes.ok) {
     return NextResponse.json({ detail: 'Authentication failed' }, { status: 500 })
   }
-
   const user = (await meRes.json()) as AuthUser
   const csrfToken = generateCsrfToken()
 

@@ -80,7 +80,7 @@ export async function proxyJson(backendRes: Response): Promise<NextResponse> {
     data = await backendRes.json()
   } catch {
     return NextResponse.json(
-      { detail: `Upstream returned non-JSON response (status ${backendRes.status})` },
+      { detail: 'Invalid response from server' },
       { status: 502 },
     )
   }
