@@ -9,8 +9,6 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_FROM_ADDRESS = "Guelma Guide <noreply@guelma.guide>"
-
 
 def send_password_reset_email(to_email: str, reset_token: str) -> None:
     """Send a password-reset link to *to_email* via Resend.
@@ -38,7 +36,7 @@ def send_password_reset_email(to_email: str, reset_token: str) -> None:
     try:
         resend.Emails.send(
             {
-                "from": _FROM_ADDRESS,
+                "from": settings.RESEND_FROM_ADDRESS,
                 "to": [to_email],
                 "subject": "Reset your Guelma Guide password",
                 "html": html_body,

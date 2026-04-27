@@ -166,7 +166,7 @@ def reset_password(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
         )
-    if not secrets.compare_digest(email, stored_email):
+    if not secrets.compare_digest(email.lower().strip(), stored_email.lower().strip()):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
         )
