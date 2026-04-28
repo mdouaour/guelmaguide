@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { type FormEvent, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import FadeInSection from '@/components/FadeInSection'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { resendVerificationEmail } from '@/lib/api'
 
 const DEMO_USER_EMAIL = process.env.NEXT_PUBLIC_DEMO_USER_EMAIL
 const DEMO_USER_PASSWORD = process.env.NEXT_PUBLIC_DEMO_USER_PASSWORD
@@ -12,11 +14,13 @@ const DEMO_USER_PASSWORD = process.env.NEXT_PUBLIC_DEMO_USER_PASSWORD
 export default function AuthPage() {
   const { lang } = useLanguage()
   const { user, loginUser, registerUser, isAuthLoading } = useAuth()
+  const router = useRouter()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
   const onSubmitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -26,13 +30,28 @@ export default function AuthPage() {
       if (mode === 'login') {
         await loginUser(email, password)
       } else {
-        await registerUser(email, password)
+        const result = await registerUser(email, password)
+        if (result.needsVerification) {
+          router.push(`/verify-email-sent?email=${encodeURIComponent(email)}`)
+          return
+        }
       }
       setPassword('')
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Unexpected error')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const onResendVerification = async () => {
+    if (!user) return
+    setResendStatus('sending')
+    try {
+      await resendVerificationEmail(user.email)
+      setResendStatus('sent')
+    } catch {
+      setResendStatus('error')
     }
   }
 
@@ -76,6 +95,42 @@ export default function AuthPage() {
             <p className="font-medium text-slate-900">
               {lang === 'ar' ? `مرحباً ${user.email}` : `You are logged in as ${user.email}`}
             </p>
+            {!user.email_verified ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                <p className="font-medium">
+                  {lang === 'ar' ? 'البريد الإلكتروني غير موثق' : 'Email not verified'}
+                </p>
+                <p className="mt-1">
+                  {lang === 'ar'
+                    ? 'أرسل لك رابط التحقق إلى بريدك الإلكتروني.'
+                    : 'A verification link was sent to your email.'}
+                </p>
+                {resendStatus === 'sent' ? (
+                  <p className="mt-2 text-emerald-700">
+                    {lang === 'ar' ? 'تم إعادة الإرسال.' : 'Resent successfully.'}
+                  </p>
+                ) : (
+                  <button
+                    onClick={onResendVerification}
+                    disabled={resendStatus === 'sending'}
+                    className="mt-2 rounded-xl border border-amber-300 px-3 py-1.5 text-xs hover:border-amber-500 disabled:opacity-50"
+                  >
+                    {resendStatus === 'sending'
+                      ? lang === 'ar'
+                        ? 'جاري الإرسال...'
+                        : 'Sending…'
+                      : lang === 'ar'
+                        ? 'إعادة إرسال رابط التحقق'
+                        : 'Resend verification email'}
+                  </button>
+                )}
+                {resendStatus === 'error' ? (
+                  <p className="mt-1 text-rose-600">
+                    {lang === 'ar' ? 'فشل الإرسال، حاول مجدداً.' : 'Failed to send, please try again.'}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
               <Link href="/activities" className="rounded-xl bg-[#2E7D32] px-3 py-2 text-white">
                 {lang === 'ar' ? 'اذهب للأنشطة' : 'Go to Activities'}

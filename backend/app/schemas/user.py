@@ -10,6 +10,7 @@ class UserRead(BaseModel):
     email: str
     role: UserRole
     organizer_verified: bool
+    email_verified: bool
     created_at: datetime
     updated_at: datetime
     model_config = {"from_attributes": True}

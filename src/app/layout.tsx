@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import UnverifiedBanner from '@/components/UnverifiedBanner'
 import { LanguageProvider } from '@/context/LanguageContext'
 import { AuthProvider } from '@/context/AuthContext'
 
@@ -35,6 +36,7 @@ export default function RootLayout({
         <LanguageProvider>
           <AuthProvider>
             <Navbar />
+            <UnverifiedBanner />
             <main>{children}</main>
             <Footer />
           </AuthProvider>
