@@ -3,7 +3,7 @@ import secrets
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
@@ -23,7 +23,7 @@ from app.models import User, UserRole
 from app.schemas.auth import LoginRequest, RegisterRequest, RegisterResponse, TokenResponse
 from app.schemas.user import UserRead
 from app.services.auth_service import authenticate_user, get_user_by_email, register_user
-from app.services.email_service import send_password_reset_email
+from app.services.email_service import send_password_reset_email, send_verification_email
 
 router = APIRouter()
 
@@ -45,6 +45,32 @@ def _build_token_response(email: str) -> tuple[str, int]:
     return token, int(expires_delta.total_seconds())
 
 
+# ---------------------------------------------------------------------------
+# Email verification helpers
+# ---------------------------------------------------------------------------
+
+_EMAIL_VERIFICATION_SCOPE = "email-verification"
+_EMAIL_VERIFICATION_EXPIRE_SECONDS = 24 * 60 * 60  # 24 hours
+_REDIS_VERIFICATION_KEY_PREFIX = "email_verify:"
+
+
+def _redis_verification_key(token: str) -> str:
+    return f"{_REDIS_VERIFICATION_KEY_PREFIX}{token}"
+
+
+def _generate_and_send_verification(email: str) -> None:
+    """Create a one-time verification token, store it in Redis, and send the email."""
+    verification_token = create_access_token(
+        subject=email,
+        expires_delta=timedelta(seconds=_EMAIL_VERIFICATION_EXPIRE_SECONDS),
+        extra_claims={"scope": _EMAIL_VERIFICATION_SCOPE},
+    )
+    set_str(_redis_verification_key(verification_token), email, _EMAIL_VERIFICATION_EXPIRE_SECONDS)
+    if settings.APP_ENV != "production":
+        logger.debug("Email verification token for %s: %s", email, verification_token)
+    send_verification_email(email, verification_token)
+
+
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 def register(
     payload: RegisterRequest,
@@ -56,17 +82,16 @@ def register(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
     try:
-        user = register_user(db, payload.email, payload.password, UserRole.VISITOR)
+        register_user(db, payload.email, payload.password, UserRole.VISITOR)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
         ) from exc
-    token, expires_in = _build_token_response(user.email)
+
+    _generate_and_send_verification(payload.email)
 
     return RegisterResponse(
-        user=UserRead.model_validate(user),
-        access_token=token,
-        expires_in=expires_in,
+        message="Registration successful. Please check your email to verify your account.",
     )
 
 
@@ -87,6 +112,81 @@ def login(
 @router.get("/me", response_model=UserRead)
 def me(current_user: Annotated[User, Depends(get_current_user)]) -> UserRead:
     return UserRead.model_validate(current_user)
+
+
+class VerifyEmailResponse(BaseModel):
+    message: str
+
+
+@router.get("/verify-email", response_model=VerifyEmailResponse)
+def verify_email(
+    token: Annotated[str, Query(min_length=1)],
+    db: Annotated[Session, Depends(get_db)],
+) -> VerifyEmailResponse:
+    redis_key = _redis_verification_key(token)
+    stored_email = get_str(redis_key)
+    if stored_email is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token",
+        )
+    # Consume the token immediately (one-time use).
+    delete_key(redis_key)
+
+    # Validate JWT claims as a secondary defence.
+    try:
+        token_data = decode_access_token(token)
+    except HTTPException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token",
+        ) from exc
+
+    if token_data.get("scope") != _EMAIL_VERIFICATION_SCOPE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token scope"
+        )
+
+    email = token_data.get("sub")
+    if not isinstance(email, str):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid verification token"
+        )
+    if not secrets.compare_digest(email, stored_email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid verification token"
+        )
+
+    user = get_user_by_email(db, email)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User not found")
+
+    user.email_verified = True
+    db.commit()
+
+    return VerifyEmailResponse(message="Email verified successfully. You can now log in.")
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+class ResendVerificationResponse(BaseModel):
+    message: str
+
+
+@router.post("/resend-verification", response_model=ResendVerificationResponse)
+def resend_verification(
+    payload: ResendVerificationRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> ResendVerificationResponse:
+    user = get_user_by_email(db, payload.email)
+    if user is not None and not user.email_verified:
+        _generate_and_send_verification(payload.email)
+    # Always return the same response to avoid user enumeration.
+    return ResendVerificationResponse(
+        message="If this email is registered and unverified, a new verification link will be sent.",
+    )
 
 
 class PasswordResetRequest(BaseModel):

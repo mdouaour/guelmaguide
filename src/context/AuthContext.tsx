@@ -3,11 +3,15 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { getMe, login, logout as logoutApi, register, type AuthUser } from '@/lib/api'
 
+interface RegisterResult {
+  needsVerification: boolean
+}
+
 interface AuthContextValue {
   user: AuthUser | null
   isAuthLoading: boolean
   loginUser: (email: string, password: string) => Promise<void>
-  registerUser: (email: string, password: string) => Promise<void>
+  registerUser: (email: string, password: string) => Promise<RegisterResult>
   logout: () => Promise<void>
 }
 
@@ -29,9 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user)
   }
 
-  const registerUser = async (email: string, password: string) => {
-    const response = await register({ email, password })
-    setUser(response.user)
+  const registerUser = async (email: string, password: string): Promise<RegisterResult> => {
+    await register({ email, password })
+    // Registration no longer auto-logs the user in: email verification is required first.
+    return { needsVerification: true }
   }
 
   const logout = async () => {

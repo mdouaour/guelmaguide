@@ -81,12 +81,17 @@ export interface AuthUser {
   email: string
   role: 'visitor' | 'organizer' | 'admin'
   organizer_verified: boolean
+  email_verified: boolean
   created_at: string
   updated_at: string
 }
 
 export interface AuthSuccessResponse {
   user: AuthUser
+}
+
+export interface RegisterSuccessResponse {
+  message: string
 }
 
 export interface Place {
@@ -194,7 +199,7 @@ export interface RecommendationsResponse {
 }
 
 export function register(payload: { email: string; password: string }) {
-  return localApiRequest<AuthSuccessResponse>('/api/auth/register', {
+  return localApiRequest<RegisterSuccessResponse>('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -251,4 +256,18 @@ export function leaveActivity(activityId: number) {
 
 export function getRecommendations(params: URLSearchParams) {
   return localApiRequest<RecommendationsResponse>(`/api/ai/recommendations?${params.toString()}`)
+}
+
+export function verifyEmail(token: string) {
+  return apiRequest<{ message: string }>(
+    `/auth/verify-email?token=${encodeURIComponent(token)}`,
+  )
+}
+
+export function resendVerificationEmail(email: string) {
+  return apiRequest<{ message: string }>('/auth/resend-verification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
 }

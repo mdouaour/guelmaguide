@@ -33,6 +33,7 @@ class User(TimestampedBase):
         String(MAX_ROLE_LENGTH), default=UserRole.VISITOR, nullable=False
     )
     organizer_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
     organized_activities: Mapped[list["Activity"]] = relationship(
         back_populates="organizer",
         foreign_keys="Activity.organizer_id",

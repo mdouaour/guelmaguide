@@ -40,7 +40,4 @@ class TokenResponse(BaseModel):
 
 
 class RegisterResponse(BaseModel):
-    user: UserRead
-    access_token: str
-    token_type: str = "bearer"
-    expires_in: int
+    message: str
