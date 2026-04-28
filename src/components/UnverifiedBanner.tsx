@@ -16,14 +16,14 @@ export default function UnverifiedBanner() {
         <>
           بريدك الإلكتروني غير موثق.{' '}
           <Link href="/auth" className="font-medium underline hover:text-amber-900">
-            اذهب إلى الإعدادات لإعادة الإرسال
+            اذهب إلى إعدادات الحساب لإعادة الإرسال
           </Link>
         </>
       ) : (
         <>
           Your email is not verified.{' '}
           <Link href="/auth" className="font-medium underline hover:text-amber-900">
-            Go to account settings to resend the verification email.
+            Go to your account to resend the verification email.
           </Link>
         </>
       )}
